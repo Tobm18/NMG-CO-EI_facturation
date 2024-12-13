@@ -57,9 +57,23 @@ class MainWindow(QWidget):
         # Vue 2 : Formulaire et tableau des produits
         self.form_layout = QFormLayout()
         self.numero_dossier_input = QLineEdit()
-        self.adresse_chantier_input = QLineEdit()
+        self.adresse_chantier_input = QComboBox()
+        self.adresse_chantier_input.setEditable(True)
+        self.adresse_chantier_input.addItems([
+            "",  # Empty first value
+            "23 chemin du test", 
+            "34 allée de la marguerite", 
+            "31 avenue de Paris"
+        ])
         self.libelle_travaux_input = QLineEdit()
-        self.adresse_facturation_input = QLineEdit()
+        self.adresse_facturation_input = QComboBox()
+        self.adresse_facturation_input.addItems([
+            "Identique à l'adresse chantier", 
+            "Autre"
+        ])
+        self.adresse_facturation_input.currentIndexChanged.connect(self.toggle_adresse_facturation)
+        self.adresse_facturation_custom_input = QLineEdit()
+        self.adresse_facturation_custom_input.setVisible(False)
         self.acompte_demande_input = QLineEdit()
         self.moyen_paiement_combo = QComboBox()
         self.moyen_paiement_combo.addItems(["Virement", "Espèces", "Chèque"])
@@ -71,6 +85,7 @@ class MainWindow(QWidget):
         self.form_layout.addRow("Adresse chantier:", self.adresse_chantier_input)
         self.form_layout.addRow("Libellé travaux:", self.libelle_travaux_input)
         self.form_layout.addRow("Adresse facturation:", self.adresse_facturation_input)
+        self.form_layout.addRow("", self.adresse_facturation_custom_input)
         self.form_layout.addRow("Acompte demandé (%):", self.acompte_demande_input)
         self.form_layout.addRow("Moyen de paiement:", self.moyen_paiement_combo)
         self.form_layout.addRow("Garantie décennale:", self.garantie_decennale_check)
@@ -148,9 +163,12 @@ class MainWindow(QWidget):
     def save_dossier(self):
         try:
             numero_dossier = self.numero_dossier_input.text()
-            adresse_chantier = self.adresse_chantier_input.text()
+            adresse_chantier = self.adresse_chantier_input.currentText()
             libelle_travaux = self.libelle_travaux_input.text()
-            adresse_facturation = self.adresse_facturation_input.text()
+            if self.adresse_facturation_input.currentIndex() == 0:
+                adresse_facturation = self.adresse_chantier_input.currentText()
+            else:
+                adresse_facturation = self.adresse_facturation_custom_input.text()
             acompte_demande = float(self.sanitize_input(self.acompte_demande_input.text()) or 0)
             moyen_paiement = self.moyen_paiement_combo.currentText()
             garantie_decennale = 1 if self.garantie_decennale_check.isChecked() else 0
@@ -245,13 +263,20 @@ class MainWindow(QWidget):
         try:
             dossier = self.get_dossier(dossier_id)
             self.numero_dossier_input.setText(dossier[1])
-            self.adresse_chantier_input.setText(dossier[2])
+            self.adresse_chantier_input.setCurrentText(dossier[2])
             self.libelle_travaux_input.setText(dossier[3])
-            self.adresse_facturation_input.setText(dossier[4])
             self.acompte_demande_input.setText(self.format_decimal(dossier[5]))
             self.moyen_paiement_combo.setCurrentText(dossier[6])
             self.garantie_decennale_check.setChecked(bool(int(dossier[7])))
             self.description_input.setText(dossier[8])
+            
+            if dossier[4] == self.adresse_chantier_input.currentText():
+                self.adresse_facturation_input.setCurrentIndex(0)
+                self.adresse_facturation_custom_input.setVisible(False)
+            else:
+                self.adresse_facturation_input.setCurrentIndex(1)
+                self.adresse_facturation_custom_input.setText(dossier[4])
+                self.adresse_facturation_custom_input.setVisible(True)
             
             # Charger les produits associés au dossier
             produits = get_produits(dossier_id)
@@ -270,7 +295,7 @@ class MainWindow(QWidget):
                 self.produits_table.setItem(row, 1, quantite_item)
                 unite = produit[6] if produit[6] is not None else "aucune"
                 unite_combo = NoScrollComboBox()
-                unite_combo.addItems(["aucune", "m", "m²", "m3"])
+                unite_combo.addItems(["aucune", "m", "m²", "m³"])
                 unite_combo.setCurrentText(unite)
                 unite_combo.setFocusPolicy(Qt.NoFocus)
                 self.produits_table.setCellWidget(row, 2, unite_combo)
@@ -303,9 +328,10 @@ class MainWindow(QWidget):
         self.hide_select_message()
         # Effacer tous les champs
         self.numero_dossier_input.clear()
-        self.adresse_chantier_input.clear()
+        self.adresse_chantier_input.setCurrentIndex(0)
         self.libelle_travaux_input.clear()
-        self.adresse_facturation_input.clear()
+        self.adresse_facturation_input.setCurrentIndex(0)
+        self.adresse_facturation_custom_input.clear()
         self.acompte_demande_input.clear()
         self.moyen_paiement_combo.setCurrentIndex(0)
         self.garantie_decennale_check.setChecked(False)
@@ -328,7 +354,7 @@ class MainWindow(QWidget):
             self.produits_table.setItem(row_position, 0, QTableWidgetItem(produit))
             self.produits_table.setItem(row_position, 1, QTableWidgetItem("0"))
             unite_combo = NoScrollComboBox()
-            unite_combo.addItems(["aucune", "m", "m²", "m3"])
+            unite_combo.addItems(["aucune", "m", "m²", "m³"])
             unite_combo.setFocusPolicy(Qt.NoFocus)
             self.produits_table.setCellWidget(row_position, 2, unite_combo)
             self.produits_table.setItem(row_position, 3, QTableWidgetItem("0,0"))
@@ -350,7 +376,7 @@ class MainWindow(QWidget):
         self.produits_table.setItem(row_position, 0, QTableWidgetItem(""))
         self.produits_table.setItem(row_position, 1, QTableWidgetItem("0"))
         unite_combo = NoScrollComboBox()
-        unite_combo.addItems(["aucune", "m", "m²", "m3"])
+        unite_combo.addItems(["aucune", "m", "m²", "m³"])
         unite_combo.setFocusPolicy(Qt.NoFocus)
         self.produits_table.setCellWidget(row_position, 2, unite_combo)
         self.produits_table.setItem(row_position, 3, QTableWidgetItem("0,0"))
@@ -400,11 +426,17 @@ class MainWindow(QWidget):
     def hide_select_message(self):
         self.stacked_layout.setCurrentWidget(self.form_widget)
 
+    def toggle_adresse_facturation(self, index):
+        if index == 1:  # "Autre" selected
+            self.adresse_facturation_custom_input.setVisible(True)
+        else:  # "Identique à l'adresse chantier" selected
+            self.adresse_facturation_custom_input.setVisible(False)
+
     def enable_editing(self):
         self.numero_dossier_input.setReadOnly(False)
-        self.adresse_chantier_input.setReadOnly(False)
+        self.adresse_chantier_input.setEnabled(True)  # Enable QComboBox in edit mode
         self.libelle_travaux_input.setReadOnly(False)
-        self.adresse_facturation_input.setReadOnly(False)
+        self.adresse_facturation_input.setEnabled(True)
         self.acompte_demande_input.setReadOnly(False)
         self.moyen_paiement_combo.setEnabled(True)
         self.garantie_decennale_check.setEnabled(True)
@@ -427,9 +459,9 @@ class MainWindow(QWidget):
 
     def disable_editing(self):
         self.numero_dossier_input.setReadOnly(True)
-        self.adresse_chantier_input.setReadOnly(True)
+        self.adresse_chantier_input.setEnabled(False)  # Disable QComboBox in non-edit mode
         self.libelle_travaux_input.setReadOnly(True)
-        self.adresse_facturation_input.setReadOnly(True)
+        self.adresse_facturation_input.setEnabled(False)
         self.acompte_demande_input.setReadOnly(True)
         self.moyen_paiement_combo.setEnabled(False)
         self.garantie_decennale_check.setEnabled(False)
