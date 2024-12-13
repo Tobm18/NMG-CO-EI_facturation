@@ -1,10 +1,14 @@
 import sys
 import subprocess
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QFormLayout, QLineEdit, QPushButton, QMessageBox, QTableWidget, QTableWidgetItem, QLabel, QStackedLayout, QHeaderView, QSplitter, QComboBox, QCheckBox
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QFormLayout, QLineEdit, QPushButton, QMessageBox, QTableWidget, QTableWidgetItem, QLabel, QStackedLayout, QHeaderView, QSplitter, QComboBox, QCheckBox, QScrollArea, QTextEdit, QMenu
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFontDatabase, QFont, QIcon
 
-from database import create_tables, add_dossier, get_dossiers, get_produits, add_produit, update_dossier, delete_produits
+from database import create_tables, add_dossier, get_dossiers, get_produits, add_produit, update_dossier, delete_produits, delete_dossier
+
+def load_stylesheet():
+    with open('styles.qss', 'r') as f:
+        return f.read()
 
 class NoScrollComboBox(QComboBox):
     def wheelEvent(self, event):
@@ -38,6 +42,8 @@ class MainWindow(QWidget):
         # Liste scrollable des dossiers
         self.dossier_list = QListWidget()
         self.dossier_list.itemClicked.connect(self.load_dossier)
+        self.dossier_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.dossier_list.customContextMenuRequested.connect(self.show_context_menu)
         content_splitter.addWidget(self.dossier_list)
 
         # StackedLayout pour basculer entre les vues
@@ -78,7 +84,21 @@ class MainWindow(QWidget):
         self.moyen_paiement_combo = QComboBox()
         self.moyen_paiement_combo.addItems(["Virement", "Espèces", "Chèque"])
         self.garantie_decennale_check = QCheckBox()
-        self.description_input = QLineEdit()
+        self.description_input = QTextEdit()
+        self.description_input.setPlaceholderText("Description")
+        self.description_input.setFixedHeight(100)  # Hauteur fixe pour afficher 5 lignes
+        self.description_input.setStyleSheet("""
+            QTextEdit {
+                padding: 10px;
+                border: 1px solid #e0e0e0;
+                border-radius: 5px;
+                background-color: white;
+                font-size: 14px;
+            }
+            QTextEdit:focus {
+                border-color: #3498db;
+            }
+        """)
 
         # Ajouter les champs au formulaire
         self.form_layout.addRow("Numéro dossier (YYYY/MM):", self.numero_dossier_input)
@@ -92,8 +112,36 @@ class MainWindow(QWidget):
         self.form_layout.addRow("Description:", self.description_input)
 
         self.save_button = QPushButton("Enregistrer")
+        self.save_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                min-width: 120px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1e8449;
+            }
+            QPushButton:disabled {
+                background-color: #bdc3c7;
+            }
+        """)
         self.save_button.clicked.connect(self.save_dossier)
-        self.form_layout.addWidget(self.save_button)
+
+        self.add_product_button = QPushButton("Ajouter un produit")
+        self.add_product_button.clicked.connect(self.add_product)
+
+        # Add buttons to a horizontal layout and align to the right
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.add_product_button)
+        buttons_layout.addWidget(self.save_button)
 
         self.produits_table = QTableWidget()
         self.produits_table.setColumnCount(7)
@@ -101,32 +149,51 @@ class MainWindow(QWidget):
         self.produits_table.setEditTriggers(QTableWidget.AllEditTriggers)
         self.produits_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-        self.add_product_button = QPushButton("Ajouter un produit")
-        self.add_product_button.clicked.connect(self.add_product)
-        self.form_layout.addWidget(self.add_product_button)
-
-        self.form_widget = QWidget()
-        form_layout = QVBoxLayout()
-        form_layout.addLayout(self.form_layout)
-        form_layout.addWidget(self.produits_table)
-
-        # Ajouter les boutons "Générer un devis" et "Générer une facture"
         self.generate_quote_button = QPushButton("Générer un devis")
         self.generate_quote_button.clicked.connect(self.generate_quote)
         self.generate_invoice_button = QPushButton("Générer une facture")
         self.generate_invoice_button.clicked.connect(self.generate_invoice)
-        form_layout.addWidget(self.generate_quote_button)
-        form_layout.addWidget(self.generate_invoice_button)
-
         self.edit_button = QPushButton("Modifier le dossier")
         self.edit_button.clicked.connect(self.enable_editing)
-        form_layout.addWidget(self.edit_button)
 
+        self.form_widget = QWidget()
+        form_layout = QVBoxLayout()
+        
+        # Créer un widget pour contenir le formulaire
+        form_container = QWidget()
+        form_container.setLayout(self.form_layout)
+        form_layout.addWidget(form_container)
+        
+        # Ajouter les boutons au-dessus du tableau
+        form_layout.addLayout(buttons_layout)
+        
+        # Configuration du tableau avec une taille minimale
+        self.produits_table.setMinimumHeight(300)  # Hauteur minimale pour le tableau
+        self.produits_table.verticalHeader().setDefaultSectionSize(40)  # Hauteur des lignes
+        self.produits_table.setAlternatingRowColors(True)  # Lignes alternées pour meilleure lisibilité
+        form_layout.addWidget(self.produits_table)
+        
+        # Ajouter les boutons de génération et d'édition
+        action_buttons_layout = QHBoxLayout()
+        action_buttons_layout.addWidget(self.generate_quote_button)
+        action_buttons_layout.addWidget(self.generate_invoice_button)
+        action_buttons_layout.addWidget(self.edit_button)
+        form_layout.addLayout(action_buttons_layout)
+        
+        # Créer un QScrollArea
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+        # Mettre le form_widget dans le QScrollArea
         self.form_widget.setLayout(form_layout)
-
-        # Ajouter les deux vues au StackedLayout
+        scroll_area.setWidget(self.form_widget)
+        
+        # Ajouter le QScrollArea au stacked layout
+        self.scroll_area = scroll_area  # Store the scroll area as an attribute
         self.stacked_layout.addWidget(self.select_widget)
-        self.stacked_layout.addWidget(self.form_widget)
+        self.stacked_layout.addWidget(self.scroll_area)
 
         right_widget = QWidget()
         right_layout = QVBoxLayout()
@@ -144,6 +211,38 @@ class MainWindow(QWidget):
 
         self.load_dossiers()
         self.show_select_message()
+
+        # Define styles for table widgets
+        self.table_button_style = """
+            QPushButton {
+                background-color: #e60023;
+                padding: 1px;
+                min-width: 60px;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                margin: 5px;
+            }
+            QPushButton:hover {
+                background-color: #b60000;
+            }
+            QPushButton:disabled {
+                background-color: #bdc3c7;
+                color: #ffffff;
+            }
+        """
+        self.table_combo_style = """
+            QComboBox {
+                border: 1px solid #dcdcdc;
+                border-radius: 0px;
+                padding: 1px;
+                background-color: none;
+            }
+            QComboBox::drop-down {
+                border-left: 1px solid #dcdcdc;
+                background-color: #ffffff;
+            }
+        """
 
     def sanitize_input(self, text):
         return text.replace(',', '.')
@@ -172,7 +271,7 @@ class MainWindow(QWidget):
             acompte_demande = float(self.sanitize_input(self.acompte_demande_input.text()) or 0)
             moyen_paiement = self.moyen_paiement_combo.currentText()
             garantie_decennale = 1 if self.garantie_decennale_check.isChecked() else 0
-            description = self.description_input.text()
+            description = self.description_input.toPlainText()
 
             if not (numero_dossier and adresse_chantier):
                 self.show_error_message("Erreur", "Veuillez remplir tous les champs obligatoires")
@@ -298,6 +397,7 @@ class MainWindow(QWidget):
                 unite_combo.addItems(["aucune", "m", "m²", "m³"])
                 unite_combo.setCurrentText(unite)
                 unite_combo.setFocusPolicy(Qt.NoFocus)
+                unite_combo.setStyleSheet(self.table_combo_style)
                 self.produits_table.setCellWidget(row, 2, unite_combo)
                 self.produits_table.setItem(row, 3, prix_item)
                 self.produits_table.setItem(row, 4, remise_item)
@@ -305,6 +405,7 @@ class MainWindow(QWidget):
                 
                 # Ajouter le bouton de suppression
                 delete_button = QPushButton("Supprimer")
+                delete_button.setStyleSheet(self.table_button_style)
                 delete_button.clicked.connect(lambda _, r=row: self.delete_product(r))
                 self.produits_table.setCellWidget(row, 6, delete_button)
         except Exception as e:
@@ -356,6 +457,7 @@ class MainWindow(QWidget):
             unite_combo = NoScrollComboBox()
             unite_combo.addItems(["aucune", "m", "m²", "m³"])
             unite_combo.setFocusPolicy(Qt.NoFocus)
+            unite_combo.setStyleSheet(self.table_combo_style)
             self.produits_table.setCellWidget(row_position, 2, unite_combo)
             self.produits_table.setItem(row_position, 3, QTableWidgetItem("0,0"))
             self.produits_table.setItem(row_position, 4, QTableWidgetItem("0,0"))
@@ -365,6 +467,7 @@ class MainWindow(QWidget):
             
             # Ajouter le bouton de suppression
             delete_button = QPushButton("Supprimer")
+            delete_button.setStyleSheet(self.table_button_style)
             delete_button.clicked.connect(lambda _, r=row_position: self.delete_product(r))
             self.produits_table.setCellWidget(row_position, 6, delete_button)
         
@@ -378,6 +481,7 @@ class MainWindow(QWidget):
         unite_combo = NoScrollComboBox()
         unite_combo.addItems(["aucune", "m", "m²", "m³"])
         unite_combo.setFocusPolicy(Qt.NoFocus)
+        unite_combo.setStyleSheet(self.table_combo_style)
         self.produits_table.setCellWidget(row_position, 2, unite_combo)
         self.produits_table.setItem(row_position, 3, QTableWidgetItem("0,0"))
         self.produits_table.setItem(row_position, 4, QTableWidgetItem("0,0"))
@@ -387,6 +491,7 @@ class MainWindow(QWidget):
         
         # Ajouter le bouton de suppression
         delete_button = QPushButton("Supprimer")
+        delete_button.setStyleSheet(self.table_button_style)
         delete_button.clicked.connect(lambda _, r=row_position: self.delete_product(r))
         self.produits_table.setCellWidget(row_position, 6, delete_button)
 
@@ -395,6 +500,7 @@ class MainWindow(QWidget):
         # Update delete buttons to ensure correct row indices
         for row in range(self.produits_table.rowCount()):
             delete_button = QPushButton("Supprimer")
+            delete_button.setStyleSheet(self.table_button_style)
             delete_button.clicked.connect(lambda _, r=row: self.delete_product(r))
             self.produits_table.setCellWidget(row, 6, delete_button)
 
@@ -424,10 +530,10 @@ class MainWindow(QWidget):
         self.stacked_layout.setCurrentWidget(self.select_widget)
 
     def hide_select_message(self):
-        self.stacked_layout.setCurrentWidget(self.form_widget)
+        self.stacked_layout.setCurrentWidget(self.scroll_area)
 
     def toggle_adresse_facturation(self, index):
-        if index == 1:  # "Autre" selected
+        if (index == 1):  # "Autre" selected
             self.adresse_facturation_custom_input.setVisible(True)
         else:  # "Identique à l'adresse chantier" selected
             self.adresse_facturation_custom_input.setVisible(False)
@@ -482,23 +588,45 @@ class MainWindow(QWidget):
             if unite_combo:
                 unite_combo.setEnabled(False)
 
+    def show_context_menu(self, position):
+        menu = QMenu()
+        delete_action = menu.addAction("Supprimer le dossier")
+        delete_action.triggered.connect(self.delete_selected_dossier)
+        menu.exec_(self.dossier_list.viewport().mapToGlobal(position))
+
+    def delete_selected_dossier(self):
+        selected_item = self.dossier_list.currentItem()
+        if selected_item:
+            dossier_text = selected_item.text().split(" - ")
+            numero_dossier = dossier_text[0]
+            dossier_id = self.get_dossier_id(numero_dossier)
+            if dossier_id:
+                reply = QMessageBox.question(self, 'Confirmation', 'Êtes-vous sûr de vouloir supprimer ce dossier?',
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if reply == QMessageBox.Yes:
+                    delete_dossier(dossier_id)
+                    self.load_dossiers()
+                    self.show_select_message()
+
 if __name__ == "__main__":
     try:
-        # Activer la mise à l'échelle DPI
+        # Enable DPI scaling
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
         app = QApplication(sys.argv)
         
-        # Optionnel : définir une police par défaut plus grande
-        QFontDatabase.addApplicationFont(":/fonts/Roboto-Regular.ttf")
-        app.setFont(QFont("Roboto", 12))
+        # Set modern font
+        font = QFont("Segoe UI", 12)
+        app.setFont(font)
+
+        # Apply stylesheet
+        app.setStyleSheet(load_stylesheet())
 
         create_tables()
         window = MainWindow()
         window.show()
         sys.exit(app.exec_())
     except Exception as e:
-        error_message = f"Une erreur s'est produite : {e}"
-        QMessageBox.critical(None, "Erreur Critique", error_message)
+        QMessageBox.critical(None, "Critical Error", str(e))
         sys.exit(1)

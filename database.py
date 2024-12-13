@@ -81,6 +81,20 @@ def add_produit(dossier_id, designation, quantite, prix, remise, unite):
     finally:
         conn.close()
 
+def delete_dossier(dossier_id):
+    conn = sqlite3.connect('facturation.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute('BEGIN TRANSACTION')
+        cursor.execute('DELETE FROM produits WHERE dossier_id = ?', (dossier_id,))
+        cursor.execute('DELETE FROM dossiers WHERE id = ?', (dossier_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
 def get_dossiers():
     conn = sqlite3.connect('facturation.db')
     cursor = conn.cursor()
