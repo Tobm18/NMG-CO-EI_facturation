@@ -237,6 +237,7 @@ def description_dossier(document, dossier):
 
 def add_produits_table(document, produits):
     """Ajoute un tableau des produits au document."""
+<<<<<<< HEAD
     # Check if any product has a discount greater than 0
     show_remise_column = any(produit[5] > 0 for produit in produits)
 
@@ -263,6 +264,35 @@ def add_produits_table(document, produits):
     if show_remise_column:
         headers.insert(3, 'REMISE')
 
+=======
+    table = document.add_table(rows=1, cols=5)
+    table.autofit = False
+
+    # Définir la largeur des colonnes
+    total_width = 7.6377953
+    widths = [Inches(total_width * 0.45), Inches(total_width * 0.1375), Inches(total_width * 0.1375), Inches(total_width * 0.1375), Inches(total_width * 0.1375)]
+    
+    table.columns[0].width = widths[0]
+    table.columns[1].width = widths[1]
+    table.columns[2].width = widths[2]
+    table.columns[3].width = widths[3]
+    table.columns[4].width = widths[4]
+
+    for cell in table.columns[0].cells:
+        cell.width = widths[0]
+    for cell in table.columns[1].cells:
+        cell.width = widths[1]
+    for cell in table.columns[2].cells:
+        cell.width = widths[2]
+    for cell in table.columns[3].cells:
+        cell.width = widths[3]
+    for cell in table.columns[4].cells:
+        cell.width = widths[4]
+
+    # En-tête du tableau
+    hdr_cells = table.rows[0].cells
+    headers = ['DÉSIGNATION', 'QUANTITÉ', 'PRIX UNITAIRE', 'REMISE', 'TOTAL']
+>>>>>>> 2dff5e9850c397c0f8a7853f0d78fd1f1cea47bb
     for idx, text in enumerate(headers):
         hdr_cells[idx].text = text
         hdr_cells[idx].paragraphs[0].style.font.name = "Arial"
@@ -273,13 +303,18 @@ def add_produits_table(document, produits):
         hdr_cells[idx].paragraphs[0].runs[0].bold = True
         set_cell_background_color(hdr_cells[idx], colorBlueBackground)
 
+<<<<<<< HEAD
     # Table body
+=======
+    # Corps du tableau
+>>>>>>> 2dff5e9850c397c0f8a7853f0d78fd1f1cea47bb
     total_amount = 0
     for produit in produits:
         row_cells = table.add_row().cells
         row_cells[0].text = produit[2]
         row_cells[1].text = f'{produit[3]}' if produit[6] is None else f'{produit[3]} {produit[6]}'
         row_cells[2].text = f'{produit[4]:.2f} €'
+<<<<<<< HEAD
         if show_remise_column:
             row_cells[3].text = f'{produit[5]:.2f} €'
             total = (produit[3] * produit[4]) - produit[5]
@@ -287,6 +322,11 @@ def add_produits_table(document, produits):
         else:
             total = produit[3] * produit[4]
             row_cells[3].text = f'{total:.2f} €'
+=======
+        row_cells[3].text = f'{produit[5]:.2f} €'
+        total = produit[3] * (produit[4] - produit[5])
+        row_cells[4].text = f'{total:.2f} €'
+>>>>>>> 2dff5e9850c397c0f8a7853f0d78fd1f1cea47bb
         total_amount += total
 
         for cell in row_cells:
@@ -296,12 +336,21 @@ def add_produits_table(document, produits):
             cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
             cell.paragraphs[0].paragraph_format.space_after = Pt(0)
 
+<<<<<<< HEAD
     # Set row heights
     table.rows[0].height = Inches(0.35433071)  # 0.9 cm
     for row in table.rows[1:]:
         row.height = Inches(0.23622047)  # 0.6 cm
 
     # Add border to the table
+=======
+    # Définir la hauteur des lignes
+    table.rows[0].height = Inches(0.35433071)  # 0,9 cm
+    for row in table.rows[1:]:
+        row.height = Inches(0.23622047)  # 0,6 cm
+
+    # Ajouter une bordure au tableau
+>>>>>>> 2dff5e9850c397c0f8a7853f0d78fd1f1cea47bb
     tbl = table._element
     tblPr = tbl.tblPr
     tblBorders = OxmlElement('w:tblBorders')
@@ -369,6 +418,7 @@ def save_document(document, dossier_id):
         try:
             document.save(document_name)
             print(f'Devis généré: {document_name}')
+<<<<<<< HEAD
             return True
         except Exception as e:
             print(f"Erreur lors de la sauvegarde du devis: {e}")
@@ -376,6 +426,12 @@ def save_document(document, dossier_id):
     else:
         print("Enregistrement annulé")
         return False
+=======
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde du devis: {e}")
+    else:
+        print("Enregistrement annulé")
+>>>>>>> 2dff5e9850c397c0f8a7853f0d78fd1f1cea47bb
 
 def generate_devis(dossier_id):
     dossier = get_dossier(dossier_id)
@@ -399,8 +455,12 @@ def generate_devis(dossier_id):
     # Add footer content to the last page
     add_footer_to_last_page(document)
 
+<<<<<<< HEAD
     if not save_document(document, dossier_id):
         sys.exit(1)
+=======
+    save_document(document, dossier_id)
+>>>>>>> 2dff5e9850c397c0f8a7853f0d78fd1f1cea47bb
 
 def get_dossier(dossier_id):
     dossiers = get_dossiers()
