@@ -17,11 +17,11 @@ class ReloadHandler(FileSystemEventHandler):
         self.process = subprocess.Popen([sys.executable, self.script_name])
 
     def on_modified(self, event):
-        if event.src_path.endswith(".py") and event.src_path.endswith(self.script_name):
-            print(f"{self.script_name} modifié, relancement de l'application...")
+        if event.src_path.endswith(".py") and any(event.src_path.endswith(script) for script in ["main.py", "liste_devis.py", "liste_facture.py"]):
+            print(f"{event.src_path} modifié, relancement de l'application...")
             self.start_process()
 
-def watch_file(script_name):
+def watch_files(script_name):
     event_handler = ReloadHandler(script_name)
     observer = Observer()
     observer.schedule(event_handler, path=".", recursive=False)  # Surveille le répertoire actuel
@@ -38,4 +38,4 @@ def watch_file(script_name):
 
 if __name__ == "__main__":
     script_name = "main.py"  # Nom du fichier à surveiller
-    watch_file(script_name)
+    watch_files(script_name)

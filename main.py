@@ -114,9 +114,12 @@ class MainWindow(QWidget):
 
         # Create a layout for the left side
         left_layout = QVBoxLayout()
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Rechercher un dossier...")
+        self.search_bar.textChanged.connect(self.filter_dossier_list)
+        left_layout.addWidget(self.search_bar)
         left_layout.addWidget(self.dossier_list)
         left_layout.addWidget(self.new_dossier_button_bottom)
-        left_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins
         left_layout.setSpacing(10)  # Set spacing
 
         left_widget = QWidget()
@@ -415,7 +418,7 @@ class MainWindow(QWidget):
 
             if not (numero_dossier and adresse_chantier):
                 self.show_error_message("Erreur", "Veuillez remplir tous les champs obligatoires")
-                return
+                return False
 
             if hasattr(self, 'current_dossier_id'):
                 update_dossier(
@@ -432,7 +435,7 @@ class MainWindow(QWidget):
                     facture_payee
                 )
                 if not self.save_produits(self.current_dossier_id):
-                    return
+                    return False
             else:
                 dossier_id = add_dossier(
                     numero_dossier,
@@ -448,18 +451,19 @@ class MainWindow(QWidget):
                 )
                 self.current_dossier_id = dossier_id
                 if not self.save_produits(dossier_id):
-                    return
+                    return False
 
             self.load_dossiers()
             self.load_dossier_by_id(self.current_dossier_id)
             self.disable_editing()  # Switch back to non-editable view
             QMessageBox.information(self, "Succès", "Dossier sauvegardé avec succès")
+            return True
         except ValueError:
             self.show_error_message("Erreur de saisie", "Veuillez entrer des valeurs numériques valides pour les champs numériques.")
+            return False
         except Exception as e:
             self.show_error_message("Erreur", f"Une erreur s'est produite lors de la sauvegarde des produits : {e}")
             return False
-        return True
 
     def save_produits(self, dossier_id):
         try:
@@ -480,13 +484,13 @@ class MainWindow(QWidget):
             # Add new products
             for produit in new_produits:
                 add_produit(dossier_id, *produit)
+            return True
         except ValueError:
             self.show_error_message("Erreur de saisie", "Veuillez entrer des valeurs numériques valides pour les champs numériques.")
             return False
         except Exception as e:
             self.show_error_message("Erreur", f"Une erreur s'est produite lors de la sauvegarde des produits : {e}")
             return False
-        return True
 
     def load_dossier(self, item):
         if self.is_editing and not self.show_unsaved_changes_warning():
@@ -672,6 +676,8 @@ class MainWindow(QWidget):
                 result = subprocess.run([sys.executable, 'generate_devis.py', str(self.current_dossier_id)], check=True)
                 if result.returncode == 0:
                     QMessageBox.information(self, "Devis", "Devis généré avec succès")
+                else:
+                    self.show_error_message("Erreur", "L'enregistrement du devis a été annulé")
             else:
                 self.show_error_message("Erreur", "Aucun dossier sélectionné")
         except subprocess.CalledProcessError as e:
@@ -875,7 +881,7 @@ class MainWindow(QWidget):
         if (active):
             return """
                 QPushButton {
-                    background-color: #34495e;
+                    background-color: rgb(79, 93, 107);
                     color: white;
                     border: none;
                     padding: 10px 20px;
@@ -926,6 +932,12 @@ class MainWindow(QWidget):
 
     def hide_select_message(self):
         self.right_stack.setCurrentWidget(self.scroll_area)
+
+    def filter_dossier_list(self, query):
+        query = query.lower()
+        for row in range(self.dossier_list.count()):
+            item = self.dossier_list.item(row)
+            item.setHidden(query not in item.text().lower())
 
 if __name__ == "__main__":
     try:
