@@ -17,7 +17,7 @@ QLabel#bandeau_label {
 
 /* Buttons */
 QPushButton {
-    background-color: #3498db;
+    background-color: #0071a2;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -52,7 +52,7 @@ QListWidget::item {
 }
 
 QListWidget::item:selected {
-    background-color: #3498db;
+    background-color: #005980;
     color: white;
 }
 
@@ -67,7 +67,7 @@ QLineEdit, QComboBox, QTextEdit {
 }
 
 QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
-    border-color: #3498db;
+    border-color: #005980;
 }
 
 QComboBox::drop-down {
@@ -174,8 +174,8 @@ QCheckBox::indicator:unchecked {
 }
 
 QCheckBox::indicator:checked {
-    border: 2px solid #3498db;
-    background-color: #3498db;
+    border: 2px solid #005980;
+    background-color: #005980;
     border-radius: 4px;
     image: url(check_mark.png);  /* Add check mark image */
 }
@@ -259,7 +259,7 @@ QMenu::item {
 }
 
 QMenu::item:selected {
-    background-color: #3498db;
+    background-color: #005980;
     color: white;
 }
 

@@ -4,7 +4,7 @@ from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_SECTION
 from datetime import datetime
-from database import get_dossiers, get_produits
+from database import get_dossiers, get_produits, get_options
 import tkinter as tk
 from tkinter import filedialog
 from docx.oxml import OxmlElement
@@ -98,7 +98,8 @@ def add_dossier_info(document, dossier):
     """Ajoute les informations du dossier au document."""
     
     # Ajouter un espace avant le tableau
-    document.add_paragraph()
+    space = document.add_paragraph(f"")
+    space.paragraph_format.space_after = Pt(0)
 
     # Encadré avec les informations principales
     table = document.add_table(rows=1, cols=1)
@@ -151,7 +152,8 @@ def add_dossier_info(document, dossier):
     tblPr.append(tblBorders)
 
     # Ajouter un espace après le tableau
-    document.add_paragraph()
+    space = document.add_paragraph(f"")
+    space.paragraph_format.space_after = Pt(0)
 
     # Tableau avec les informations supplémentaires
     fields = [
@@ -220,50 +222,59 @@ def add_dossier_info(document, dossier):
 def description_dossier(document, dossier):
     """Ajoute la description du dossier au document."""
     document.add_paragraph("Description :")
-    document.add_paragraph(dossier[8])
+    # Ajouter un run vide si la description est vide
+    description_paragraph = document.add_paragraph()
+    description_run = description_paragraph.add_run(dossier[8] if dossier[8] else "")
 
     # Style de paragraphe
     paragraphs = document.paragraphs[-2:]
     for paragraph in paragraphs:
         for run in paragraph.runs:
             run.font.name = "Arial"
-    paragraphs[0].paragraph_format.space_after = Pt(12)
+    paragraphs[0].paragraph_format.space_after = Pt(5)
     paragraphs[0].paragraph_format.space_before = Pt(12)
     paragraphs[0].runs[0].font.size = Pt(13)
     paragraphs[0].runs[0].bold = True
     paragraphs[0].runs[0].underline = True
-    paragraphs[1].paragraph_format.space_after = Pt(12)
-    paragraphs[1].runs[0].font.size = Pt(10)
+    
+    # Vérifier si le run existe avant d'appliquer le style
+    if description_run:
+        description_run.font.size = Pt(10)
+        description_paragraph.paragraph_format.space_after = Pt(12)
 
 def add_produits_table(document, produits):
-    """Ajoute un tableau des produits au document."""
-    table = document.add_table(rows=1, cols=5)
+    """Ajoute un tableau des produits et options au document."""
+    # Check if any product or option has a discount greater than 0
+    show_remise_column = any(produit[5] > 0 for produit in produits)
+    options = get_options(dossier_id)  # Ajouter dossier_id comme argument de la fonction
+    if options:
+        show_remise_column = show_remise_column or any(option[5] > 0 for option in options)
+
+    # Determine the number of columns based on whether to show the "Remise" column
+    num_cols = 5 if show_remise_column else 4
+    table = document.add_table(rows=1, cols=num_cols)
     table.autofit = False
 
-    # Définir la largeur des colonnes
+    # Define column widths
     total_width = 7.6377953
-    widths = [Inches(total_width * 0.45), Inches(total_width * 0.1375), Inches(total_width * 0.1375), Inches(total_width * 0.1375), Inches(total_width * 0.1375)]
+    if show_remise_column:
+        widths = [Inches(total_width * 0.45), Inches(total_width * 0.1375), Inches(total_width * 0.1375), 
+                 Inches(total_width * 0.1375), Inches(total_width * 0.1375)]
+    else:
+        widths = [Inches(total_width * 0.5625), Inches(total_width * 0.1458), 
+                 Inches(total_width * 0.1458), Inches(total_width * 0.1458)]
     
-    table.columns[0].width = widths[0]
-    table.columns[1].width = widths[1]
-    table.columns[2].width = widths[2]
-    table.columns[3].width = widths[3]
-    table.columns[4].width = widths[4]
+    for idx, width in enumerate(widths):
+        table.columns[idx].width = width
+        for cell in table.columns[idx].cells:
+            cell.width = width
 
-    for cell in table.columns[0].cells:
-        cell.width = widths[0]
-    for cell in table.columns[1].cells:
-        cell.width = widths[1]
-    for cell in table.columns[2].cells:
-        cell.width = widths[2]
-    for cell in table.columns[3].cells:
-        cell.width = widths[3]
-    for cell in table.columns[4].cells:
-        cell.width = widths[4]
-
-    # En-tête du tableau
+    # Table header
     hdr_cells = table.rows[0].cells
-    headers = ['DÉSIGNATION', 'QUANTITÉ', 'PRIX UNITAIRE', 'REMISE', 'TOTAL']
+    headers = ['DÉSIGNATION', 'QUANTITÉ', 'PRIX UNITAIRE', 'TOTAL']
+    if show_remise_column:
+        headers.insert(3, 'REMISE')
+
     for idx, text in enumerate(headers):
         hdr_cells[idx].text = text
         hdr_cells[idx].paragraphs[0].style.font.name = "Arial"
@@ -274,16 +285,20 @@ def add_produits_table(document, produits):
         hdr_cells[idx].paragraphs[0].runs[0].bold = True
         set_cell_background_color(hdr_cells[idx], colorBlueBackground)
 
-    # Corps du tableau
+    # Corps du tableau - Produits
     total_amount = 0
     for produit in produits:
         row_cells = table.add_row().cells
         row_cells[0].text = produit[2]
         row_cells[1].text = f'{produit[3]}' if produit[6] is None else f'{produit[3]} {produit[6]}'
         row_cells[2].text = f'{produit[4]:.2f} €'
-        row_cells[3].text = f'{produit[5]:.2f} €'
-        total = produit[3] * (produit[4] - produit[5])
-        row_cells[4].text = f'{total:.2f} €'
+        if show_remise_column:
+            row_cells[3].text = f'{produit[5]:.2f} €'
+            total = (produit[3] * produit[4]) - produit[5]
+            row_cells[4].text = f'{total:.2f} €'
+        else:
+            total = produit[3] * produit[4]
+            row_cells[3].text = f'{total:.2f} €'
         total_amount += total
 
         for cell in row_cells:
@@ -293,12 +308,50 @@ def add_produits_table(document, produits):
             cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
             cell.paragraphs[0].paragraph_format.space_after = Pt(0)
 
-    # Définir la hauteur des lignes
-    table.rows[0].height = Inches(0.35433071)  # 0,9 cm
-    for row in table.rows[1:]:
-        row.height = Inches(0.23622047)  # 0,6 cm
+        # Apply left alignment to the first column
+        row_cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-    # Ajouter une bordure au tableau
+    # Options
+    if options:
+        for option in options:
+            row_cells = table.add_row().cells
+            option_cell = row_cells[0].paragraphs[0]
+            option_cell.text = ""  # Clear default text
+            designation_run = option_cell.add_run(f"{option[2]} (option)")
+            designation_run.font.color.rgb = colorBlueText
+            designation_run.font.name = "Arial"
+            designation_run.font.size = Pt(10)
+            option_cell.paragraph_format.space_after = Pt(0)    
+            option_cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # Autres cellules
+            row_cells[1].text = f'{option[3]}' if option[6] is None else f'{option[3]} {option[6]}'
+            row_cells[2].text = f'{option[4]:.2f} €'
+            if show_remise_column:
+                row_cells[3].text = f'{option[5]:.2f} €'
+                total = (option[3] * option[4]) - option[5]
+                row_cells[4].text = f'{total:.2f} €'
+            else:
+                total = option[3] * option[4]
+                row_cells[3].text = f'{total:.2f} €'
+
+            # Style des autres cellules
+            for cell in row_cells[1:]:
+                paragraph = cell.paragraphs[0]
+                run = paragraph.runs[0] if paragraph.runs else paragraph.add_run(cell.text)
+                run.font.name = "Arial"
+                run.font.size = Pt(10)
+                run.font.color.rgb = colorBlueText
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
+                paragraph.paragraph_format.space_after = Pt(0)
+
+    # Set row heights
+    table.rows[0].height = Inches(0.35433071)  # 0.9 cm
+    for row in table.rows[1:]:
+        row.height = Inches(0.23622047)  # 0.6 cm
+
+    # Add border to the table
     tbl = table._element
     tblPr = tbl.tblPr
     tblBorders = OxmlElement('w:tblBorders')
@@ -311,12 +364,17 @@ def add_produits_table(document, produits):
         tblBorders.append(border)
     tblPr.append(tblBorders)
 
+    # Add space after the table
+    space = document.add_paragraph(f"")
+    space.paragraph_format.space_after = Pt(0)
+
     return total_amount
 
 def add_footer_to_last_page(document):
     """Ajoute un pied de page au bas de la dernière page du document."""
     # Ajouter un espace avant le footer
-    document.add_paragraph()
+    space = document.add_paragraph(f"")
+    space.paragraph_format.space_after = Pt(0)
 
     # Premier paragraphe
     paragraph1 = document.add_paragraph()
@@ -381,21 +439,74 @@ def generate_devis(dossier_id):
         return False
 
     produits = get_produits(dossier_id)
+    options = get_options(dossier_id)
     document = Document()
 
-    set_document_margins(document, top=0.5, bottom=0.5, left=0.5, right=0.5)  # Définit des marges de 1,27 cm (0,5 pouce)
+    set_document_margins(document, top=0.5, bottom=0.5, left=0.5, right=0.5)
     create_header(document)
     add_dossier_info(document, dossier)
     description_dossier(document, dossier)
     total_amount = add_produits_table(document, produits)
+    
+    # Calculate totals
+    acompte_percentage = float(dossier[5])
+    acompte_amount = total_amount * (acompte_percentage / 100)
+    
+    # Calculate options total if there are options
+    options_total = 0
+    if options:
+        for option in options:
+            options_total += (option[3] * option[4]) - option[5]  # quantité * prix - remise
+        total_with_options = total_amount + options_total
+        acompte_with_options = total_with_options * (acompte_percentage / 100)
+        
+        # Add totals with options
+        paragraphs = [
+            f"SOUS TOTAL : {total_amount:.2f} €",
+            f"SOUS TOTAL AVEC OPTIONS : {total_with_options:.2f} €",
+            f"ACOMPTE A VERSER SI SIGNATURE DU DEVIS SANS OPTIONS : {acompte_amount:.2f} €",
+            f"ACOMPTE A VERSER SI SIGNATURE DU DEVIS AVEC OPTIONS : {acompte_with_options:.2f} €"
+        ]
+    else:
+        # Add total without options
+        paragraphs = [
+            f"SOUS TOTAL : {total_amount:.2f} €",
+            f"ACOMPTE A VERSER : {acompte_amount:.2f} €"
+        ]
 
-    document.add_paragraph(f"SOUS TOTAL : {total_amount:.2f} €")
-    document.add_paragraph(f"TOTAL A REGLER : {total_amount:.2f} €")
-    document.add_paragraph("SI ACCEPTATION DU DEVIS ACOMPTE A VERSER : 522.50 €\nTVA NON APPLICABLE - Art. 293 B du CGI")
+    for text in paragraphs:
+        paragraph = document.add_paragraph()
+        if "AVEC OPTIONS" in text:
+            parts = text.split("AVEC OPTIONS")
+            run = paragraph.add_run(parts[0])
+            run.bold = True
+            run = paragraph.add_run("AVEC OPTIONS")
+            run.bold = True
+            if "ACOMPTE A VERSER SI SIGNATURE DU DEVIS AVEC OPTIONS" in text:
+                run.font.color.rgb = colorRed
+            run = paragraph.add_run(parts[1])
+            run.bold = True
+        elif "SANS OPTIONS" in text:
+            parts = text.split("SANS OPTIONS")
+            run = paragraph.add_run(parts[0])
+            run.bold = True
+            run = paragraph.add_run("SANS OPTIONS")
+            run.bold = True
+            run.font.color.rgb = colorRed
+            run = paragraph.add_run(parts[1])
+            run.bold = True
+        else:
+            run = paragraph.add_run(text)
+            run.bold = True
+        paragraph.paragraph_format.space_after = Pt(0)
 
-    # Add footer content to the last page
+    paragraph = document.add_paragraph("TVA NON APPLICABLE - Art. 293 B du CGI")
+    run = paragraph.runs[0]
+    run.font.size = Pt(7)
+    paragraph.paragraph_format.space_before = Pt(6)
+    paragraph.paragraph_format.space_after = Pt(0)
+
     add_footer_to_last_page(document)
-
     return save_document(document, dossier_id)
 
 def get_dossier(dossier_id):

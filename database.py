@@ -31,6 +31,18 @@ def create_tables():
         FOREIGN KEY (dossier_id) REFERENCES dossiers (id)
     )''')
 
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS options (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        dossier_id INTEGER,
+        designation TEXT,
+        quantite REAL,
+        prix REAL,
+        remise REAL,
+        unite TEXT,
+        FOREIGN KEY (dossier_id) REFERENCES dossiers (id)
+    )''')
+
     conn.commit()
     conn.close()
 
@@ -83,11 +95,38 @@ def add_produit(dossier_id, designation, quantite, prix, remise, unite):
     finally:
         conn.close()
 
+def add_option(dossier_id, designation, quantite, prix, remise, unite):
+    conn = sqlite3.connect('facturation.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute('BEGIN TRANSACTION')
+        cursor.execute('''
+        INSERT INTO options (dossier_id, designation, quantite, prix, remise, unite)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''', (dossier_id, designation, quantite, prix, remise, unite))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+def delete_options(dossier_id):
+    conn = sqlite3.connect('facturation.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+    DELETE FROM options
+    WHERE dossier_id = ?
+    ''', (dossier_id,))
+    conn.commit()
+    conn.close()
+
 def delete_dossier(dossier_id):
     conn = sqlite3.connect('facturation.db')
     cursor = conn.cursor()
     try:
         cursor.execute('BEGIN TRANSACTION')
+        cursor.execute('DELETE FROM options WHERE dossier_id = ?', (dossier_id,))
         cursor.execute('DELETE FROM produits WHERE dossier_id = ?', (dossier_id,))
         cursor.execute('DELETE FROM dossiers WHERE id = ?', (dossier_id,))
         conn.commit()
@@ -112,6 +151,14 @@ def get_produits(dossier_id):
     produits = cursor.fetchall()
     conn.close()
     return produits
+
+def get_options(dossier_id):
+    conn = sqlite3.connect('facturation.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM options WHERE dossier_id = ?', (dossier_id,))
+    options = cursor.fetchall()
+    conn.close()
+    return options
 
 if __name__ == "__main__":
     create_tables()

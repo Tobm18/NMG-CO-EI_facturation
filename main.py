@@ -1,10 +1,11 @@
 import sys
 import subprocess
+import datetime
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QFormLayout, QLineEdit, QPushButton, QMessageBox, QTableWidget, QTableWidgetItem, QLabel, QStackedLayout, QHeaderView, QSplitter, QComboBox, QCheckBox, QScrollArea, QTextEdit, QMenu, QDialog, QDialogButtonBox, QSizePolicy, QAbstractItemView
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QFontDatabase, QFont, QIcon, QPalette, QColor
 
-from database import create_tables, add_dossier, get_dossiers, get_produits, add_produit, update_dossier, delete_produits, delete_dossier
+from database import create_tables, add_dossier, get_dossiers, get_produits, add_produit, update_dossier, delete_produits, delete_dossier, add_option, delete_options, get_options
 from liste_facture import ListeFacture
 from liste_devis import ListeDevis
 
@@ -92,7 +93,7 @@ class MainWindow(QWidget):
         self.new_dossier_button_bottom = QPushButton("Créer un nouveau dossier")
         self.new_dossier_button_bottom.setStyleSheet("""
             QPushButton {
-                background-color: #3498db;
+                background-color: #0071a2;
                 color: white;
                 border: none;
                 padding: 10px 20px;
@@ -134,9 +135,17 @@ class MainWindow(QWidget):
         self.adresse_chantier_input.setEditable(True)
         self.adresse_chantier_input.addItems([
             "",  # Empty first value
-            "23 chemin du test", 
-            "34 allée de la marguerite", 
-            "31 avenue de Paris"
+            "12 Av Henri Isnard - 06140 Vence", 
+            "60 Av de Verdun - 06800 Cagne-sur-Mer", 
+            "9 Av Thiers - 06130 Grasse",
+            "7 Avenue de Grande Bretagne - 98000 Monaco",
+            "1225 Route de la Fénerie - 06580 Pégomas",
+            "23 Av Mont Fleury - 06300 Nice",
+            "38 Bd de l'Esterel - 06150 Cannes La Bocca",
+            "1544 Corniche d'Agrimont - 06700 Saint-Laurent-du-Var",
+            "342 Chemin du Château d'Eau - 06610 La Gaude",
+            "67 Bd Sadi Carnot - 06110 Le Cannet",
+            "55 Bd Marechal Juin - 06800 Cagne-sur-Mer"
         ])
         self.libelle_travaux_input = QLineEdit()
         self.adresse_facturation_input = NoScrollComboBox()
@@ -163,21 +172,21 @@ class MainWindow(QWidget):
                 min-height: 100px;
             }
             QTextEdit:focus {
-                border-color: #3498db;
+                border-color: #005980;
             }
         """)
         self.description_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)  # Ensure the size policy is set correctly
 
         # Ajouter les champs au formulaire
-        self.form_layout.addRow("Numéro dossier (YYYY/MM):", self.numero_dossier_input)
-        self.form_layout.addRow("Adresse chantier:", self.adresse_chantier_input)
-        self.form_layout.addRow("Libellé travaux:", self.libelle_travaux_input)
-        self.form_layout.addRow("Adresse facturation:", self.adresse_facturation_input)
+        self.form_layout.addRow("Numéro de dossier :", self.numero_dossier_input)
+        self.form_layout.addRow("Adresse chantier :", self.adresse_chantier_input)
+        self.form_layout.addRow("Libellé travaux :", self.libelle_travaux_input)
+        self.form_layout.addRow("Adresse facturation :", self.adresse_facturation_input)
         self.form_layout.addRow("", self.adresse_facturation_custom_input)
-        self.form_layout.addRow("Acompte demandé (%):", self.acompte_demande_input)
-        self.form_layout.addRow("Moyen de paiement:", self.moyen_paiement_combo)
-        self.form_layout.addRow("Garantie décennale:", self.garantie_decennale_check)
-        self.form_layout.addRow("Description:", self.description_input)
+        self.form_layout.addRow("Acompte demandé (%) :", self.acompte_demande_input)
+        self.form_layout.addRow("Moyen de paiement :", self.moyen_paiement_combo)
+        self.form_layout.addRow("Garantie décennale :", self.garantie_decennale_check)
+        self.form_layout.addRow("Description :", self.description_input)
 
         self.save_button = QPushButton("Enregistrer")
         self.save_button.setStyleSheet("""
@@ -278,6 +287,44 @@ class MainWindow(QWidget):
         self.produits_table.setAlternatingRowColors(True)  # Lignes alternées pour meilleure lisibilité
         form_layout.addWidget(self.produits_table)
         
+        # Créer un widget container pour les options
+        self.options_container = QWidget()
+        options_container_layout = QVBoxLayout()
+        self.options_container.setLayout(options_container_layout)
+        
+        # Ajouter les widgets d'options au container
+        self.options_label = QLabel("Options proposées :")
+        options_container_layout.addWidget(self.options_label)
+        
+        self.options_table = QTableWidget()
+        self.options_table.setColumnCount(7)
+        self.options_table.setHorizontalHeaderLabels(["Désignation", "Quantité", "Unité", "Prix Unitaire", "Remise", "Total", ""])
+        self.options_table.setEditTriggers(QTableWidget.AllEditTriggers)
+        
+        # Configuration identique au tableau des produits
+        self.options_table.setColumnWidth(0, 300)
+        self.options_table.setColumnWidth(1, 100)
+        self.options_table.setColumnWidth(2, 100)
+        self.options_table.setColumnWidth(3, 115)
+        self.options_table.setColumnWidth(4, 100)
+        self.options_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+        self.options_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
+        self.options_table.setMinimumHeight(200)
+        self.options_table.verticalHeader().setDefaultSectionSize(40)
+        self.options_table.setAlternatingRowColors(True)
+        options_container_layout.addWidget(self.options_table)
+        
+        # Ajouter le container au form_layout
+        form_layout.addWidget(self.options_container)
+        
+        # Ajouter le bouton d'options après le container (en dehors)
+        self.add_option_button = QPushButton("Ajouter une option")
+        self.add_option_button.clicked.connect(self.add_option)
+        form_layout.addWidget(self.add_option_button)
+        
+        # Cacher le container par défaut
+        self.options_container.hide()
+
         # Ajouter les cases à cocher "Devis signé" et "Facture payée"
         self.devis_signe_check = QCheckBox()
         self.facture_payee_check = QCheckBox()
@@ -434,8 +481,7 @@ class MainWindow(QWidget):
                     devis_signe,
                     facture_payee
                 )
-                if not self.save_produits(self.current_dossier_id):
-                    return False
+                dossier_id = self.current_dossier_id
             else:
                 dossier_id = add_dossier(
                     numero_dossier,
@@ -450,14 +496,30 @@ class MainWindow(QWidget):
                     facture_payee
                 )
                 self.current_dossier_id = dossier_id
-                if not self.save_produits(dossier_id):
-                    return False
 
+            if not self.save_produits(dossier_id):
+                return False
+                
+            if not self.save_options(dossier_id):
+                return False
+
+            self.disable_editing()  # Désactiver le mode édition
+            
+            # Mettre à jour la liste des dossiers
             self.load_dossiers()
-            self.load_dossier_by_id(self.current_dossier_id)
-            self.disable_editing()  # Switch back to non-editable view
+            
+            # Trouver et sélectionner le dossier dans la liste
+            for i in range(self.dossier_list.count()):
+                item = self.dossier_list.item(i)
+                if item.text().startswith(f"{numero_dossier} -"):
+                    self.dossier_list.setCurrentItem(item)
+                    # Déclencher manuellement l'événement de clic pour charger le dossier
+                    self.load_dossier(item)
+                    break
+
             QMessageBox.information(self, "Succès", "Dossier sauvegardé avec succès")
             return True
+            
         except ValueError:
             self.show_error_message("Erreur de saisie", "Veuillez entrer des valeurs numériques valides pour les champs numériques.")
             return False
@@ -490,6 +552,27 @@ class MainWindow(QWidget):
             return False
         except Exception as e:
             self.show_error_message("Erreur", f"Une erreur s'est produite lors de la sauvegarde des produits : {e}")
+            return False
+
+    def save_options(self, dossier_id):
+        try:
+            new_options = []
+            for row in range(self.options_table.rowCount()):
+                designation = self.options_table.item(row, 0).text()
+                quantite = float(self.sanitize_input(self.options_table.item(row, 1).text()))
+                unite = self.options_table.cellWidget(row, 2).currentText()
+                unite = None if unite == "aucune" else unite
+                prix = float(self.sanitize_input(self.options_table.item(row, 3).text()))
+                remise = float(self.sanitize_input(self.options_table.item(row, 4).text()))
+                if designation or quantite != 0 or prix != 0.0:
+                    new_options.append((designation, quantite, prix, remise, unite))
+
+            delete_options(dossier_id)
+            for option in new_options:
+                add_option(dossier_id, *option)
+            return True
+        except Exception as e:
+            self.show_error_message("Erreur", f"Une erreur s'est produite lors de la sauvegarde des options : {e}")
             return False
 
     def load_dossier(self, item):
@@ -562,6 +645,45 @@ class MainWindow(QWidget):
                 delete_button.setStyleSheet(self.table_button_style)
                 delete_button.clicked.connect(lambda _, r=row: self.delete_product(r))
                 self.produits_table.setCellWidget(row, 6, delete_button)
+                
+            # Charger les options
+            options = get_options(dossier_id)
+            
+            # Afficher ou cacher le container des options selon s'il y en a ou non
+            self.options_container.setVisible(bool(options))
+            
+            if options:
+                self.options_table.setRowCount(len(options))
+                for row, option in enumerate(options):
+                    # Même logique que pour les produits
+                    designation_item = QTableWidgetItem(option[2])
+                    quantite_item = QTableWidgetItem(self.format_decimal(option[3]))
+                    prix_item = QTableWidgetItem(self.format_decimal(option[4]))
+                    remise_item = QTableWidgetItem(self.format_decimal(option[5]))
+                    prix_unitaire = option[4]
+                    remise = option[5]
+                    prix_total = (option[3] * prix_unitaire) - remise
+                    total_item = QTableWidgetItem(self.format_decimal(round(prix_total, 2)))
+                    total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)
+                    
+                    self.options_table.setItem(row, 0, designation_item)
+                    self.options_table.setItem(row, 1, quantite_item)
+                    unite = option[6] if option[6] is not None else "aucune"
+                    unite_combo = NoScrollComboBox()
+                    unite_combo.addItems(["aucune", "m", "m²", "m³"])
+                    unite_combo.setCurrentText(unite)
+                    unite_combo.setFocusPolicy(Qt.NoFocus)
+                    unite_combo.setStyleSheet(self.table_combo_style)
+                    self.options_table.setCellWidget(row, 2, unite_combo)
+                    self.options_table.setItem(row, 3, prix_item)
+                    self.options_table.setItem(row, 4, remise_item)
+                    self.options_table.setItem(row, 5, total_item)
+                    
+                    delete_button = QPushButton("Supprimer")
+                    delete_button.setStyleSheet(self.table_button_style)
+                    delete_button.clicked.connect(lambda _, r=row: self.delete_option(r))
+                    self.options_table.setCellWidget(row, 6, delete_button)
+                
         except Exception as e:
             self.show_error_message("Erreur", f"Une erreur s'est produite lors du chargement des détails du dossier : {e}")
 
@@ -585,7 +707,7 @@ class MainWindow(QWidget):
             return
         self.hide_select_message()
         # Effacer tous les champs
-        self.numero_dossier_input.clear()
+        self.numero_dossier_input.setText(generate_next_dossier_number())  # Modifier cette ligne
         self.adresse_chantier_input.setCurrentIndex(0)
         self.libelle_travaux_input.clear()
         self.adresse_facturation_input.setCurrentIndex(0)
@@ -633,6 +755,10 @@ class MainWindow(QWidget):
             delete_button.clicked.connect(lambda _, r=row_position: self.delete_product(r))
             self.produits_table.setCellWidget(row_position, 6, delete_button)
         
+        # Cacher le container des options pour un nouveau dossier
+        self.options_container.hide()
+        self.options_table.setRowCount(0)
+        
         self.enable_editing()  # Switch to editable view
 
     def add_product(self):
@@ -669,6 +795,38 @@ class MainWindow(QWidget):
             delete_button.setStyleSheet(self.table_button_style)
             delete_button.clicked.connect(lambda _, r=row: self.delete_product(r))
             self.produits_table.setCellWidget(row, 6, delete_button)
+
+    def add_option(self):
+        row_position = self.options_table.rowCount()
+        self.options_table.insertRow(row_position)
+        self.options_table.setItem(row_position, 0, QTableWidgetItem(""))
+        self.options_table.setItem(row_position, 1, QTableWidgetItem("0"))
+        unite_combo = NoScrollComboBox()
+        unite_combo.addItems(["aucune", "m", "m²", "m³"])
+        unite_combo.setFocusPolicy(Qt.NoFocus)
+        unite_combo.setStyleSheet(self.table_combo_style)
+        self.options_table.setCellWidget(row_position, 2, unite_combo)
+        self.options_table.setItem(row_position, 3, QTableWidgetItem("0,0"))
+        self.options_table.setItem(row_position, 4, QTableWidgetItem("0,0"))
+        prix_total_item = QTableWidgetItem("0,0")
+        prix_total_item.setFlags(prix_total_item.flags() & ~Qt.ItemIsEditable)
+        self.options_table.setItem(row_position, 5, prix_total_item)
+        
+        delete_button = QPushButton("Supprimer")
+        delete_button.setStyleSheet(self.table_button_style)
+        delete_button.clicked.connect(lambda _, r=row_position: self.delete_option(r))
+        self.options_table.setCellWidget(row_position, 6, delete_button)
+        
+        # Montrer le container des options quand on ajoute la première option
+        self.options_container.show()
+
+    def delete_option(self, row):
+        self.options_table.removeRow(row)
+        for row in range(self.options_table.rowCount()):
+            delete_button = QPushButton("Supprimer")
+            delete_button.setStyleSheet(self.table_button_style)
+            delete_button.clicked.connect(lambda _, r=row: self.delete_option(r))
+            self.options_table.setCellWidget(row, 6, delete_button)
 
     def generate_quote(self):
         try:
@@ -743,11 +901,14 @@ class MainWindow(QWidget):
         self.facture_payee_check.setEnabled(True)  # Enable checkbox in edit mode
         self.description_input.setReadOnly(False)
         self.produits_table.setEditTriggers(QTableWidget.AllEditTriggers)
+        self.options_table.setEditTriggers(QTableWidget.AllEditTriggers)
         self.save_button.setEnabled(True)
         self.add_product_button.setEnabled(True)
+        self.add_option_button.setEnabled(True)
         self.cancel_button.setEnabled(True)
         self.save_button.show()
         self.add_product_button.show()
+        self.add_option_button.show()
         self.cancel_button.show()
         self.generate_quote_button.setEnabled(False)
         self.generate_invoice_button.setEnabled(False)
@@ -759,6 +920,14 @@ class MainWindow(QWidget):
             if delete_button:
                 delete_button.setEnabled(True)
             unite_combo = self.produits_table.cellWidget(row, 2)
+            if unite_combo:
+                unite_combo.setEnabled(True)
+                
+        for row in range(self.options_table.rowCount()):
+            delete_button = self.options_table.cellWidget(row, 6)
+            if delete_button:
+                delete_button.setEnabled(True)
+            unite_combo = self.options_table.cellWidget(row, 2)
             if unite_combo:
                 unite_combo.setEnabled(True)
 
@@ -775,11 +944,14 @@ class MainWindow(QWidget):
         self.facture_payee_check.setEnabled(False)  # Disable checkbox in non-edit mode
         self.description_input.setReadOnly(True)
         self.produits_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.options_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.save_button.setEnabled(False)
         self.add_product_button.setEnabled(False)
+        self.add_option_button.setEnabled(False)
         self.cancel_button.setEnabled(False)
         self.save_button.hide()
         self.add_product_button.hide()
+        self.add_option_button.hide()
         self.cancel_button.hide()
         self.generate_quote_button.setEnabled(True)
         self.generate_invoice_button.setEnabled(True)
@@ -791,6 +963,14 @@ class MainWindow(QWidget):
             if delete_button:
                 delete_button.setEnabled(False)
             unite_combo = self.produits_table.cellWidget(row, 2)
+            if unite_combo:
+                unite_combo.setEnabled(False)
+                
+        for row in range(self.options_table.rowCount()):
+            delete_button = self.options_table.cellWidget(row, 6)
+            if delete_button:
+                delete_button.setEnabled(False)
+            unite_combo = self.options_table.cellWidget(row, 2)
             if unite_combo:
                 unite_combo.setEnabled(False)
 
@@ -825,8 +1005,12 @@ class MainWindow(QWidget):
         """Cancel the editing and reload the current dossier details."""
         if hasattr(self, 'current_dossier_id'):
             self.load_dossier_by_id(self.current_dossier_id)
+        else:
+            # Si c'est un nouveau dossier (pas de current_dossier_id)
+            self.show_select_message()  # Afficher le message "Sélectionnez un dossier"
+            self.dossier_list.clearSelection()  # Déselectionner tout dossier dans la liste
+        
         self.disable_editing()
-        # Clear focus to prevent unintended modifications
         self.clear_focus()
 
     def clear_focus(self):
@@ -938,6 +1122,31 @@ class MainWindow(QWidget):
         for row in range(self.dossier_list.count()):
             item = self.dossier_list.item(row)
             item.setHidden(query not in item.text().lower())
+
+def get_last_dossier_number():
+    try:
+        dossiers = get_dossiers()
+        current_year = datetime.datetime.now().year
+        year_dossiers = []
+        
+        for dossier in dossiers:
+            numero = dossier[1]  # Récupère le numéro de dossier
+            if '/' in numero:
+                year, num = numero.split('/')
+                if int(year) == current_year:
+                    year_dossiers.append(int(num))
+        
+        if year_dossiers:
+            return max(year_dossiers)
+        return 0
+    except:
+        return 0
+
+def generate_next_dossier_number():
+    current_year = datetime.datetime.now().year
+    last_number = get_last_dossier_number()
+    next_number = last_number + 1
+    return f"{current_year}/{next_number}"
 
 if __name__ == "__main__":
     try:

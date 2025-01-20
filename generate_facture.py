@@ -3,7 +3,7 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from datetime import datetime
-from database import get_dossiers, get_produits
+from database import get_dossiers, get_produits, get_options
 import tkinter as tk
 from tkinter import filedialog
 from docx.oxml import OxmlElement
@@ -105,7 +105,8 @@ def add_dossier_info(document, dossier):
     """Ajoute les informations du dossier au document."""
     
     # Ajouter un espace avant le tableau
-    document.add_paragraph()
+    space = document.add_paragraph(f"")
+    space.paragraph_format.space_after = Pt(0)
 
     # Encadré avec les informations principales
     table = document.add_table(rows=1, cols=1)
@@ -158,7 +159,8 @@ def add_dossier_info(document, dossier):
     tblPr.append(tblBorders)
 
     # Ajouter un espace après le tableau
-    document.add_paragraph()
+    space = document.add_paragraph(f"")
+    space.paragraph_format.space_after = Pt(0)
 
     # Tableau avec les informations supplémentaires
     fields = [
@@ -227,25 +229,33 @@ def add_dossier_info(document, dossier):
 def description_dossier(document, dossier):
     """Ajoute la description du dossier au document."""
     document.add_paragraph("Description :")
-    document.add_paragraph(dossier[8])
+    # Ajouter un run vide si la description est vide
+    description_paragraph = document.add_paragraph()
+    description_run = description_paragraph.add_run(dossier[8] if dossier[8] else "")
 
     # Style de paragraphe
     paragraphs = document.paragraphs[-2:]
     for paragraph in paragraphs:
         for run in paragraph.runs:
             run.font.name = "Arial"
-    paragraphs[0].paragraph_format.space_after = Pt(12)
+    paragraphs[0].paragraph_format.space_after = Pt(5)
     paragraphs[0].paragraph_format.space_before = Pt(12)
     paragraphs[0].runs[0].font.size = Pt(13)
     paragraphs[0].runs[0].bold = True
     paragraphs[0].runs[0].underline = True
-    paragraphs[1].paragraph_format.space_after = Pt(12)
-    paragraphs[1].runs[0].font.size = Pt(10)
+    
+    # Vérifier si le run existe avant d'appliquer le style
+    if description_run:
+        description_run.font.size = Pt(10)
+        description_paragraph.paragraph_format.space_after = Pt(12)
 
 def add_produits_table(document, produits):
-    """Ajoute un tableau des produits au document."""
-    # Check if any product has a discount greater than 0
+    """Ajoute un tableau des produits et options au document."""
+    # Check if any product or option has a discount greater than 0
     show_remise_column = any(produit[5] > 0 for produit in produits)
+    options = get_options(dossier_id)  # Ajouter dossier_id comme argument de la fonction
+    if options:
+        show_remise_column = show_remise_column or any(option[5] > 0 for option in options)
 
     # Determine the number of columns based on whether to show the "Remise" column
     num_cols = 5 if show_remise_column else 4
@@ -302,6 +312,46 @@ def add_produits_table(document, produits):
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
             cell.paragraphs[0].paragraph_format.space_after = Pt(0)
+        
+        # Apply left alignment to the first column
+        row_cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    # Ajouter les options s'il y en a
+    if options:
+
+        # Ajouter les options
+        for option in options:
+            row_cells = table.add_row().cells
+            option_cell = row_cells[0].paragraphs[0]
+            option_cell.text = ""  # Clear default text
+            designation_run = option_cell.add_run(f"{option[2]} (option)")
+            designation_run.font.color.rgb = colorBlueText
+            designation_run.font.name = "Arial"
+            designation_run.font.size = Pt(10)
+            option_cell.paragraph_format.space_after = Pt(0)       
+            option_cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        
+            # Autres cellules
+            row_cells[1].text = f'{option[3]}' if option[6] is None else f'{option[3]} {option[6]}'
+            row_cells[2].text = f'{option[4]:.2f} €'
+            if show_remise_column:
+                row_cells[3].text = f'{option[5]:.2f} €'
+                total = option[3] * option[4] - option[5]
+                row_cells[4].text = f'{total:.2f} €'
+            else:
+                total = option[3] * option[4]
+                row_cells[3].text = f'{total:.2f} €'
+
+            # Style des autres cellules
+            for cell in row_cells[1:]:
+                paragraph = cell.paragraphs[0]
+                run = paragraph.runs[0] if paragraph.runs else paragraph.add_run(cell.text)
+                run.font.name = "Arial"
+                run.font.size = Pt(10)
+                run.font.color.rgb = colorBlueText
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
+                paragraph.paragraph_format.space_after = Pt(0)
 
     # Set row heights
     table.rows[0].height = Inches(0.35433071)  # 0.9 cm
@@ -321,12 +371,17 @@ def add_produits_table(document, produits):
         tblBorders.append(border)
     tblPr.append(tblBorders)
 
+    # Add space after the table
+    space = document.add_paragraph(f"")
+    space.paragraph_format.space_after = Pt(0)
+
     return total_amount
 
 def add_footer_to_last_page(document):
     """Ajoute un pied de page au bas de la dernière page du document."""
     # Ajouter un espace avant le footer
-    document.add_paragraph()
+    space = document.add_paragraph(f"")
+    space.paragraph_format.space_after = Pt(0)
 
     # Premier paragraphe
     paragraph1 = document.add_paragraph()
@@ -403,21 +458,62 @@ def generate_facture(dossier_id, invoice_type):
         return
 
     produits = get_produits(dossier_id)
+    options = get_options(dossier_id)
     document = Document()
 
-    set_document_margins(document, top=0.5, bottom=0.5, left=0.5, right=0.5)  # Définit des marges de 1,27 cm (0,5 pouce)
+    set_document_margins(document, top=0.5, bottom=0.5, left=0.5, right=0.5)
     create_header(document, invoice_type)
     add_dossier_info(document, dossier)
     description_dossier(document, dossier)
     total_amount = add_produits_table(document, produits)
+    
+    # Calculate totals
+    acompte_percentage = float(dossier[5])
+    acompte_amount = total_amount * (acompte_percentage / 100)
+    # Calculate options total if there are options
+    options_total = 0
+    if options:
+        for option in options:
+            options_total += (option[3] * option[4]) - option[5]  # quantité * prix - remise
+        total_with_options = total_amount + options_total
+        acompte_with_options = total_with_options * (acompte_percentage / 100)
+        
+        # Add totals with options
+        paragraph = document.add_paragraph(f"SOUS TOTAL : {total_amount:.2f} €")
+        paragraph.runs[0].bold = True
+        paragraph.paragraph_format.space_after = Pt(0)
+        
+        paragraph = document.add_paragraph(f"SOUS TOTAL AVEC OPTIONS : {total_with_options:.2f} €")
+        paragraph.runs[0].bold = True
+        paragraph.paragraph_format.space_after = Pt(0)
+        
+        if invoice_type == "Facture d'acompte":
+            paragraph = document.add_paragraph(f"ACOMPTE A REGLER : {acompte_amount:.2f} €")
+            paragraph.runs[0].bold = True
+            paragraph.paragraph_format.space_after = Pt(0)
+            
+            paragraph = document.add_paragraph(f"ACOMPTE A REGLER AVEC OPTIONS : {acompte_with_options:.2f} €")
+            paragraph.runs[0].bold = True
+            paragraph.paragraph_format.space_after = Pt(0)
+    else:
+        # Add total without options
+        paragraph = document.add_paragraph(f"SOUS TOTAL : {total_amount:.2f} €")
+        paragraph.runs[0].bold = True
+        paragraph.paragraph_format.space_after = Pt(0)
+        
+        if invoice_type == "Facture d'acompte":
+            paragraph = document.add_paragraph(f"ACOMPTE A REGLER : {acompte_amount:.2f} €")
+            paragraph.runs[0].bold = True
+            paragraph.paragraph_format.space_after = Pt(0)
 
-    document.add_paragraph(f"SOUS TOTAL : {total_amount:.2f} €")
-    document.add_paragraph(f"TOTAL A REGLER : {total_amount:.2f} €")
-    document.add_paragraph("TVA NON APPLICABLE - Art. 293 B du CGI")
+    paragraph = document.add_paragraph("TVA NON APPLICABLE - Art. 293 B du CGI")
+    run = paragraph.runs[0]
+    run.font.size = Pt(7)
+    paragraph.paragraph_format.space_before = Pt(6)
+    paragraph.paragraph_format.space_after = Pt(0)
 
-    # Add footer content to the last page
+
     add_footer_to_last_page(document)
-
     if not save_document(document, dossier_id, invoice_type):
         sys.exit(1)
 
