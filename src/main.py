@@ -1,21 +1,150 @@
 import sys
+import os
 import subprocess
 import datetime
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QFormLayout, QLineEdit, QPushButton, QMessageBox, QTableWidget, QTableWidgetItem, QLabel, QStackedLayout, QHeaderView, QSplitter, QComboBox, QCheckBox, QScrollArea, QTextEdit, QMenu, QDialog, QDialogButtonBox, QSizePolicy, QAbstractItemView
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QFontDatabase, QFont, QIcon, QPalette, QColor
+from PyQt5.QtWidgets import (QMessageBox, QDialog, QVBoxLayout, QLabel, 
+                            QPushButton, QApplication)
 
-from database import create_tables, add_dossier, get_dossiers, get_produits, add_produit, update_dossier, delete_produits, delete_dossier, add_option, delete_options, get_options
-from liste_facture import ListeFacture
-from liste_devis import ListeDevis
+# Corriger les imports pour utiliser les chemins complets
+from src.database.database import (
+    create_tables, 
+    add_dossier, 
+    get_dossiers, 
+    get_produits, 
+    add_produit, 
+    update_dossier, 
+    delete_produits, 
+    delete_dossier, 
+    add_option, 
+    delete_options, 
+    get_options
+)
+from src.views.liste_facture import ListeFacture
+from src.views.liste_devis import ListeDevis
 
 def load_stylesheet():
-    with open('styles.qss', 'r') as f:
-        return f.read()
+    try:
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+            style_path = os.path.join(base_path, 'assets', 'style.qss')
+        else:
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            style_path = os.path.join(base_path, 'src', 'assets', 'style.qss')
+
+        if not os.path.exists(style_path):
+            print(f"Style file not found at: {style_path}")
+            return ""
+            
+        with open(style_path, 'r') as f:
+            style = f.read()
+            
+        # Remplacer les chemins d'images dans le QSS
+        if getattr(sys, 'frozen', False):
+            img_path = os.path.join(base_path, 'assets', 'Img').replace('\\', '/')
+        else:
+            img_path = os.path.join(base_path, 'src', 'assets', 'Img').replace('\\', '/')
+            
+        # Remplacer les références relatives par des chemins absolus
+        style = style.replace('url(', f'url({img_path}/')
+        return style
+        
+    except Exception as e:
+        print(f"Error loading stylesheet: {e}")
+        return ""
+
+def get_resource_path(relative_path):
+    """Obtient le chemin absolu d'une ressource, que ce soit en développement ou dans l'exe"""
+    try:
+        if getattr(sys, 'frozen', False):
+            # Si l'application est compilée (dans un exe)
+            base_path = sys._MEIPASS
+        else:
+            # Si l'application est en développement
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        
+        return os.path.join(base_path, 'assets', relative_path)
+    except Exception as e:
+        print(f"Erreur lors de la récupération du chemin de la ressource : {e}")
+        return None
 
 class NoScrollComboBox(QComboBox):
     def wheelEvent(self, event):
         event.ignore()
+
+class DatabaseWarningDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Base de données manquante")
+        self.setFixedWidth(400)
+        
+        layout = QVBoxLayout()
+        
+        message = QLabel(
+            "La base de données est manquante ou corrompue.\n"
+            "Voulez-vous créer une nouvelle base de données ?"
+        )
+        message.setWordWrap(True)
+        layout.addWidget(message)
+        
+        self.create_btn = QPushButton("Créer une nouvelle base de données")
+        self.create_btn.clicked.connect(self.accept)
+        self.create_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2ecc71;
+                color: white;
+                padding: 10px;
+                border: none;
+                border-radius: 4px;
+                margin: 5px;
+            }
+            QPushButton:hover {
+                background-color: #27ae60;
+            }
+        """)
+        
+        self.cancel_btn = QPushButton("Quitter")
+        self.cancel_btn.clicked.connect(self.reject)
+        self.cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                padding: 10px;
+                border: none;
+                border-radius: 4px;
+                margin: 5px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+        """)
+        
+        layout.addWidget(self.create_btn)
+        layout.addWidget(self.cancel_btn)
+        
+        self.setLayout(layout)
+
+def initialize_database():
+    """Initialise ou vérifie la base de données"""
+    db_path = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation', 'facturation.db')
+    
+    if not os.path.exists(db_path) or not verify_database():
+        dialog = DatabaseWarningDialog()
+        if dialog.exec_() == QDialog.Accepted:
+            try:
+                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                from src.database.databaseinit import init_database
+                init_database()
+                QMessageBox.information(None, "Succès", "Base de données créée avec succès.")
+                return True
+            except Exception as e:
+                QMessageBox.critical(None, "Erreur", f"Erreur lors de la création de la base de données : {str(e)}")
+                return False
+        else:
+            return False
+    return True
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -25,8 +154,12 @@ class MainWindow(QWidget):
         self.setGeometry(100, 100, 1280, 720)  # Set window size to 1280x720 for 16:9 aspect ratio
         self.setMinimumSize(1280, 720)  # Set minimum size to ensure usability on smaller screens
         
-        # Définir l'icône de la fenêtre principale
-        self.setWindowIcon(QIcon('NMG_CO.ico'))
+        # Définition correcte de l'icône de la fenêtre principale
+        icon_path = get_resource_path(os.path.join('Img', 'NMG_CO.ico'))
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        else:
+            print(f"Icône non trouvée : {icon_path}")
 
         # Layout principal
         self.main_layout = QVBoxLayout()

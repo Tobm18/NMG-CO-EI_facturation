@@ -3,7 +3,7 @@ import subprocess
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QAbstractItemView, QMessageBox, QDialog, QLabel, QDialogButtonBox, QComboBox
 from PyQt5.QtGui import QBrush, QColor
 from PyQt5.QtCore import Qt
-from database import get_dossiers, get_produits
+from src.database.database import get_dossiers, get_produits  # Correction de l'import
 
 class NoScrollComboBox(QComboBox):
     def wheelEvent(self, e):

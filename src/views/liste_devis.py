@@ -1,8 +1,8 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QAbstractItemView, QMessageBox
 from PyQt5.QtGui import QBrush, QColor
-from PyQt5.QtCore import Qt  # Add this import
-from database import get_dossiers, get_produits
+from PyQt5.QtCore import Qt
+from src.database.database import get_dossiers, get_produits  # Correction de l'import
 import subprocess
 
 class ListeDevis(QWidget):

@@ -1,53 +1,26 @@
+import os
 import sqlite3
+import sys
+from .databaseinit import init_database
+
+def get_db_path():
+    """Retourne le chemin de la base de données dans AppData"""
+    appdata = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation')
+    os.makedirs(appdata, exist_ok=True)
+    return os.path.join(appdata, 'facturation.db')
+
+# Utiliser le chemin dans AppData
+DB_PATH = get_db_path()
+
+def get_connection():
+    return sqlite3.connect(DB_PATH)
 
 def create_tables():
-    conn = sqlite3.connect('facturation.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS dossiers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        numero_dossier TEXT,
-        adresse_chantier TEXT,
-        libelle_travaux TEXT,
-        adresse_facturation TEXT,
-        acompte_demande REAL,
-        moyen_paiement TEXT,
-        garantie_decennale TEXT,
-        description TEXT,
-        devis_signe INTEGER DEFAULT 0,
-        facture_payee INTEGER DEFAULT 0
-    )''')
-    
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS produits (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        dossier_id INTEGER,
-        designation TEXT,
-        quantite REAL,
-        prix REAL,
-        remise REAL,
-        unite TEXT,
-        FOREIGN KEY (dossier_id) REFERENCES dossiers (id)
-    )''')
-
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS options (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        dossier_id INTEGER,
-        designation TEXT,
-        quantite REAL,
-        prix REAL,
-        remise REAL,
-        unite TEXT,
-        FOREIGN KEY (dossier_id) REFERENCES dossiers (id)
-    )''')
-
-    conn.commit()
-    conn.close()
+    """Initialise la base de données"""
+    init_database()
 
 def add_dossier(numero_dossier, adresse_chantier, libelle_travaux, adresse_facturation, acompte_demande, moyen_paiement, garantie_decennale, description, devis_signe, facture_payee):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
     INSERT INTO dossiers (numero_dossier, adresse_chantier, libelle_travaux, adresse_facturation, acompte_demande, moyen_paiement, garantie_decennale, description, devis_signe, facture_payee)
@@ -59,7 +32,7 @@ def add_dossier(numero_dossier, adresse_chantier, libelle_travaux, adresse_factu
     return dossier_id
 
 def update_dossier(dossier_id, numero_dossier, adresse_chantier, libelle_travaux, adresse_facturation, acompte_demande, moyen_paiement, garantie_decennale, description, devis_signe, facture_payee):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
     UPDATE dossiers
@@ -70,7 +43,7 @@ def update_dossier(dossier_id, numero_dossier, adresse_chantier, libelle_travaux
     conn.close()
 
 def delete_produits(dossier_id):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
     DELETE FROM produits
@@ -80,7 +53,7 @@ def delete_produits(dossier_id):
     conn.close()
 
 def add_produit(dossier_id, designation, quantite, prix, remise, unite):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute('BEGIN TRANSACTION')
@@ -96,7 +69,7 @@ def add_produit(dossier_id, designation, quantite, prix, remise, unite):
         conn.close()
 
 def add_option(dossier_id, designation, quantite, prix, remise, unite):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute('BEGIN TRANSACTION')
@@ -112,7 +85,7 @@ def add_option(dossier_id, designation, quantite, prix, remise, unite):
         conn.close()
 
 def delete_options(dossier_id):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
     DELETE FROM options
@@ -122,7 +95,7 @@ def delete_options(dossier_id):
     conn.close()
 
 def delete_dossier(dossier_id):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute('BEGIN TRANSACTION')
@@ -137,7 +110,7 @@ def delete_dossier(dossier_id):
         conn.close()
 
 def get_dossiers():
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM dossiers')
     dossiers = cursor.fetchall()
@@ -145,7 +118,7 @@ def get_dossiers():
     return dossiers
 
 def get_produits(dossier_id):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM produits WHERE dossier_id = ?', (dossier_id,))
     produits = cursor.fetchall()
@@ -153,7 +126,7 @@ def get_produits(dossier_id):
     return produits
 
 def get_options(dossier_id):
-    conn = sqlite3.connect('facturation.db')
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM options WHERE dossier_id = ?', (dossier_id,))
     options = cursor.fetchall()

@@ -76,7 +76,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: url(down_arrow.png);
+    image: url(down_arrow.png);  /* Le chemin sera automatiquement ajusté */
     width: 14px;
     height: 14px;
 }
@@ -177,7 +177,7 @@ QCheckBox::indicator:checked {
     border: 2px solid #005980;
     background-color: #005980;
     border-radius: 4px;
-    image: url(check_mark.png);  /* Add check mark image */
+    image: url(check_mark.png);  /* Le chemin sera automatiquement ajusté */
 }
 
 /* Splitter */
