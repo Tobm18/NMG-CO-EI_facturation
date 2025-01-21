@@ -43,12 +43,13 @@ def init_database():
     try:
         # Créer le dossier dans AppData
         appdata_dir = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation')
+        data_dir = os.path.join(appdata_dir, 'data')
         os.makedirs(appdata_dir, exist_ok=True)
         
-        print(f"Création de la base de données dans : {appdata_dir}")
+        print(f"Création de la base de données dans : {data_dir}")
         
         # Chemin de la base de données
-        db_path = os.path.join(appdata_dir, 'facturation.db')
+        db_path = os.path.join(data_dir, 'facturation.db')
         print(f"Tentative de création de la base de données à : {db_path}")
 
         # Test write permissions

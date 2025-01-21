@@ -6,8 +6,9 @@ from .databaseinit import init_database
 def get_db_path():
     """Retourne le chemin de la base de données dans AppData"""
     appdata = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation')
+    data_dir = os.path.join(appdata, 'data')
     os.makedirs(appdata, exist_ok=True)
-    return os.path.join(appdata, 'facturation.db')
+    return os.path.join(data_dir, 'facturation.db')
 
 # Utiliser le chemin dans AppData
 DB_PATH = get_db_path()

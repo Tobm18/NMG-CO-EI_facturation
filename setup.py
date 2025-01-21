@@ -6,7 +6,6 @@ import ctypes
 from pathlib import Path
 import winshell
 from win32com.client import Dispatch
-from PyInstaller.__main__ import run as pyi_run
 
 def is_admin():
     try:
@@ -17,15 +16,7 @@ def is_admin():
 def run_as_admin():
     ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
 
-# Check for admin rights first
-if not is_admin():
-    print("Requesting administrator privileges...")
-    run_as_admin()
-    sys.exit()
-
 def get_app_paths():
-    # Chemins pour l'installation
-    username = os.getenv('USERNAME')
     app_data = os.path.join(os.getenv('LOCALAPPDATA'), 'NMGFacturation')
     data_dir = os.path.join(app_data, 'data')
     install_dir = os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'NMGFacturation')
@@ -34,7 +25,7 @@ def get_app_paths():
     return {
         'app_data': app_data,
         'data_dir': data_dir,
-        'install_dir': install_dir,
+        'install_dir': install_dir, 
         'desktop': desktop
     }
 
@@ -103,50 +94,53 @@ def create_shortcut(install_dir, desktop):
     
     print(f"Raccourci créé sur le bureau: {shortcut_path}")
 
-def build_and_install():
-    """Construction et installation de l'application"""
+def copy_application_files():
+    """Copie les fichiers de l'application depuis les ressources embarquées"""
     paths = get_app_paths()
     
-    # Création des répertoires nécessaires
-    os.makedirs(paths['data_dir'], exist_ok=True)
-    os.makedirs(paths['install_dir'], exist_ok=True)
-    
-    # Construction de l'application avec PyInstaller
-    pyi_run([
-        'src/main.py',
-        '--name=NMGFacturation',
-        '--windowed',
-        f'--icon=src/assets/Img/NMG_CO.ico',
-        f'--add-data=src/assets/style.qss;assets/',
-        f'--add-data=src/assets/Img/*;assets/Img/',
-        '--hidden-import=PyQt5',
-        '--hidden-import=sqlite3',
-        '--hidden-import=docx',
-        '--hidden-import=datetime',
-        '--clean',
-        '--noconfirm'
-    ])
-    
-    # Copie des fichiers de l'application vers le répertoire d'installation
-    dist_path = os.path.join('dist', 'NMGFacturation')
-    if os.path.exists(dist_path):
-        # Supprimer l'ancienne installation si elle existe
-        shutil.rmtree(paths['install_dir'], ignore_errors=True)
-        # Copier la nouvelle version
-        shutil.copytree(dist_path, paths['install_dir'])
-        print(f"Application installée dans {paths['install_dir']}")
-    
-    # Initialisation de la base de données
-    create_database(paths['data_dir'])
-    
-    # Création du raccourci sur le bureau
-    create_shortcut(paths['install_dir'], paths['desktop'])
+    # Obtenez le chemin du bundle PyInstaller
+    if getattr(sys, 'frozen', False):
+        bundle_dir = sys._MEIPASS
+    else:
+        bundle_dir = os.path.dirname(os.path.abspath(__file__))
 
-if __name__ == '__main__':
+    # Copie de l'exécutable principal
+    app_exe = os.path.join(bundle_dir, 'NMGFacturation.exe')
+    if os.path.exists(app_exe):
+        shutil.copy2(app_exe, os.path.join(paths['install_dir'], 'NMGFacturation.exe'))
+        print(f"Application copiée vers {paths['install_dir']}")
+
+def main():
+    if not is_admin():
+        print("Requesting administrator privileges...")
+        run_as_admin()
+        sys.exit()
+
     try:
         print("Début de l'installation...")
-        build_and_install()
-        print("Installation terminée avec succès!")
+        paths = get_app_paths()
+        
+        # Création des répertoires
+        os.makedirs(paths['data_dir'], exist_ok=True)
+        os.makedirs(paths['install_dir'], exist_ok=True)
+        
+        # Copie des fichiers de l'application
+        copy_application_files()
+        
+        # Initialisation de la base de données
+        create_database(paths['data_dir'])
+        
+        # Création du raccourci
+        create_shortcut(paths['install_dir'], paths['desktop'])
+        
+        # Remplacer input() par un message box
+        from win32api import MessageBox
+        MessageBox(None, "Installation terminée avec succès!", "Installation")
+        
     except Exception as e:
-        print(f"Erreur lors de l'installation: {e}")
+        from win32api import MessageBox
+        MessageBox(None, f"Erreur lors de l'installation: {e}", "Erreur")
         sys.exit(1)
+
+if __name__ == '__main__':
+    main()
