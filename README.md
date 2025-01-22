@@ -3,9 +3,8 @@
 Application de facturation développée pour NMG&CO-EI.
 
 ## Installation rapide
-
-- 📥 [Télécharger l'installateur](./NMGFacturationInstaller.exe)
-- 📥 [Télécharger le désinstallateur](./NMGFacturationUninstaller.exe)
+- 📥 [Télécharger l'installateur](https://github.com/Tobm18/NMG-CO-EI_facturation/raw/main/NMGFacturationInstaller.exe)
+- 📥 [Télécharger le désinstallateur](https://github.com/Tobm18/NMG-CO-EI_facturation/raw/main/NMGFacturationUninstaller.exe)
 
 ## Structure du projet
 
