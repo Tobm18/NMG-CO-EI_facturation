@@ -85,12 +85,9 @@ class ListeDevis(QWidget):
 
     def generate_devis(self, dossier_id):
         try:
-            result = subprocess.run([sys.executable, 'generate_devis.py', str(dossier_id)], check=True)
-            if result.returncode == 0:
+            from src.utils.generate_devis import generate_devis
+            if generate_devis(dossier_id):
                 QMessageBox.information(self, "Devis", "Devis téléchargé avec succès")
-        except subprocess.CalledProcessError as e:
-            if e.returncode != 1:
-                QMessageBox.critical(self, "Erreur", f"Une erreur s'est produite lors du téléchargement du devis : {e}")
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Une erreur s'est produite : {e}")
 

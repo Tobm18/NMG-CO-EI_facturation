@@ -964,16 +964,14 @@ class MainWindow(QWidget):
     def generate_quote(self):
         try:
             if hasattr(self, 'current_dossier_id'):
-                result = subprocess.run([sys.executable, 'generate_devis.py', str(self.current_dossier_id)], check=True)
-                if result.returncode == 0:
+                # Importer et appeler directement la fonction
+                from src.utils.generate_devis import generate_devis
+                if generate_devis(self.current_dossier_id):
                     QMessageBox.information(self, "Devis", "Devis généré avec succès")
                 else:
                     self.show_error_message("Erreur", "L'enregistrement du devis a été annulé")
             else:
                 self.show_error_message("Erreur", "Aucun dossier sélectionné")
-        except subprocess.CalledProcessError as e:
-            if e.returncode != 1:
-                self.show_error_message("Erreur", f"Une erreur s'est produite lors de la génération du devis : {e}")
         except Exception as e:
             self.show_error_message("Erreur", f"Une erreur s'est produite : {e}")
 
@@ -1004,14 +1002,12 @@ class MainWindow(QWidget):
         dialog.accept()
         try:
             if hasattr(self, 'current_dossier_id'):
-                result = subprocess.run([sys.executable, 'generate_facture.py', str(self.current_dossier_id), invoice_type], check=True)
-                if result.returncode == 0:
+                # Importer et appeler directement la fonction
+                from src.utils.generate_facture import generate_facture
+                if generate_facture(self.current_dossier_id, invoice_type):
                     QMessageBox.information(self, "Facture", f"{invoice_type} générée avec succès")
             else:
                 self.show_error_message("Erreur", "Aucun dossier sélectionné")
-        except subprocess.CalledProcessError as e:
-            if e.returncode != 1:
-                self.show_error_message("Erreur", f"Une erreur s'est produite lors de la génération de la facture : {e}")
         except Exception as e:
             self.show_error_message("Erreur", f"Une erreur s'est produite : {e}")
 

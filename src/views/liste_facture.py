@@ -104,12 +104,9 @@ class ListeFacture(QWidget):
         invoice_type = self.invoice_type_combo.currentText()
         dialog.accept()
         try:
-            result = subprocess.run([sys.executable, 'generate_facture.py', str(dossier_id), invoice_type], check=True)
-            if result.returncode == 0:
+            from src.utils.generate_facture import generate_facture
+            if generate_facture(dossier_id, invoice_type):
                 QMessageBox.information(self, "Facture", f"{invoice_type} téléchargée avec succès")
-        except subprocess.CalledProcessError as e:
-            if e.returncode != 1:
-                QMessageBox.critical(self, "Erreur", f"Une erreur s'est produite lors du téléchargement de la facture : {e}")
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Une erreur s'est produite : {e}")
 

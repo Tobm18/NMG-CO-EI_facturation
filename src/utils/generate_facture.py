@@ -3,7 +3,7 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from datetime import datetime
-from database import get_dossiers, get_produits, get_options
+from src.database.database import get_dossiers, get_produits, get_options
 import tkinter as tk
 from tkinter import filedialog
 from docx.oxml import OxmlElement
@@ -249,11 +249,11 @@ def description_dossier(document, dossier):
         description_run.font.size = Pt(10)
         description_paragraph.paragraph_format.space_after = Pt(12)
 
-def add_produits_table(document, produits):
+def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id comme paramètre
     """Ajoute un tableau des produits et options au document."""
     # Check if any product or option has a discount greater than 0
     show_remise_column = any(produit[5] > 0 for produit in produits)
-    options = get_options(dossier_id)  # Ajouter dossier_id comme argument de la fonction
+    options = get_options(dossier_id)
     if options:
         show_remise_column = show_remise_column or any(option[5] > 0 for option in options)
 
@@ -455,7 +455,7 @@ def generate_facture(dossier_id, invoice_type):
     dossier = get_dossier(dossier_id)
     if not dossier:
         print(f"Erreur : Aucun dossier trouvé avec l'identifiant {dossier_id}.")
-        return
+        return False
 
     produits = get_produits(dossier_id)
     options = get_options(dossier_id)
@@ -465,7 +465,7 @@ def generate_facture(dossier_id, invoice_type):
     create_header(document, invoice_type)
     add_dossier_info(document, dossier)
     description_dossier(document, dossier)
-    total_amount = add_produits_table(document, produits)
+    total_amount = add_produits_table(document, produits, dossier_id)  # Passer dossier_id
     
     # Calculate totals
     acompte_percentage = float(dossier[5])

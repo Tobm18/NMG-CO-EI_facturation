@@ -11,6 +11,14 @@ def create_app():
         '--add-data=src/assets;assets',
         '--hidden-import=PyQt5',
         '--hidden-import=sqlite3',
+        '--hidden-import=src.utils.generate_devis',  # Ajouter ces imports
+        '--hidden-import=src.utils.generate_facture',
+        '--hidden-import=src.database',
+        '--hidden-import=src.database.database',
+        '--hidden-import=src.database.databaseinit',
+        '--hidden-import=docx',
+        '--collect-submodules=src',
+        '--collect-data=src',
         '--windowed',
         '--clean',
         '--noconfirm'
