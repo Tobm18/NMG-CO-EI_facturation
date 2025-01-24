@@ -4,7 +4,7 @@ from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_SECTION
 from datetime import datetime
-from src.database.database import get_dossiers, get_produits, get_options
+from src.database.database import get_dossiers, get_produits, get_options, get_connection
 import tkinter as tk
 from tkinter import filedialog
 from docx.oxml import OxmlElement
@@ -18,6 +18,32 @@ colorBlueBackground = "#B8CCE4"  # Fond bleu
 colorBlueBorder = "#0288be"  # Bordure bleue
 colorBlackBorder = "#000000"  # Bordure noire
 colorMail = RGBColor(0, 112, 192)  # Couleur mail
+
+def format_number(number):
+    """
+    Formate un nombre pour l'affichage dans les documents.
+    Convertit les nombres en chaînes et gère les formats spéciaux.
+    """
+    try:
+        if isinstance(number, str):
+            # Si c'est déjà une chaîne, retourner telle quelle pour "Forfait" et "Ensemble"
+            if number in ["Forfait", "Ensemble"]:
+                return number
+            # Sinon, essayer de convertir en float
+            try:
+                number = float(number.replace(',', '.'))
+            except ValueError:
+                return number
+
+        if isinstance(number, (int, float)):
+            # Formater le nombre avec 2 décimales et remplacer le point par une virgule
+            return f"{number:,.2f}".replace(',', ' ').replace('.', ',')
+        
+        return str(number)
+
+    except Exception as e:
+        print(f"Erreur dans format_number: {e}")
+        return str(number)
 
 def set_cell_background_color(cell, color):
     """Applique une couleur de fond à une cellule."""
@@ -60,7 +86,7 @@ def create_header(document):
     paragraphs = [
         ("NMG&CO EI", 20, colorBlueText, True, False),
         ("QUALITE - RAPIDITE - EFFICACITE", 10, colorBlueText, True, False),
-        ("nmgiovar@gmail.com", 16, colorMail, True, True),
+        ("nmgiovan@gmail.com", 16, colorMail, True, True),
         ("07.69.98.25.66", 16, colorBlackText, True, False),
     ]
 
@@ -113,7 +139,7 @@ def add_dossier_info(document, dossier):
     # Ajouter les styles
     lines = [
         ("DATE :", datetime.now().strftime('%d/%m/%Y')),
-        ("N° DEVIS :", "2024/01"),
+        ("N° DEVIS :", dossier[1]),
         ("ADRESSE CHANTIER :", dossier[2]),
         ("LIBELLÉ TRAVAUX :", dossier[3])
     ]
@@ -157,13 +183,13 @@ def add_dossier_info(document, dossier):
 
     # Tableau avec les informations supplémentaires
     fields = [
-        ("ADRESSE FACTURATION", dossier[4]),
-        ("ACOMPTE DEMANDÉ", f"{dossier[5]}% à la signature"),
-        ("MODALITÉS DE PAIEMENT", "À Réception de la facture"),  # Remplacez par la valeur appropriée
-        ("MOYEN DE PAIEMENT", dossier[6])
+        ("ADRESSE FACTURATION", str(dossier[4])),  # Convertir en string
+        ("ACOMPTE DEMANDÉ", "50% à la signature"),
+        ("MODALITÉS DE PAIEMENT", "À Réception de la facture"), 
+        ("MOYEN DE PAIEMENT", str(dossier[5]))  # Convertir en string
     ]
 
-    if dossier[7] == "1":
+    if dossier[6] == 1:  # Garantie décennale
         fields.insert(1, ("GARANTIE", "Décenale"))
 
     num_cols = len(fields)
@@ -181,8 +207,8 @@ def add_dossier_info(document, dossier):
     for col, (label, value) in enumerate(fields):
         cell_1 = table.cell(0, col)
         cell_2 = table.cell(1, col)
-        cell_1.text = label
-        cell_2.text = value
+        cell_1.text = str(label)  # Convertir en string
+        cell_2.text = str(value)  # Convertir en string
 
         for paragraph in cell_1.paragraphs:
             paragraph.style.font.name = "Arial"
@@ -224,7 +250,7 @@ def description_dossier(document, dossier):
     document.add_paragraph("Description :")
     # Ajouter un run vide si la description est vide
     description_paragraph = document.add_paragraph()
-    description_run = description_paragraph.add_run(dossier[8] if dossier[8] else "")
+    description_run = description_paragraph.add_run(dossier[7] if dossier[7] else "")
 
     # Style de paragraphe
     paragraphs = document.paragraphs[-2:]
@@ -290,15 +316,29 @@ def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id co
     for produit in produits:
         row_cells = table.add_row().cells
         row_cells[0].text = produit[2]
-        row_cells[1].text = f'{produit[3]}' if produit[6] is None else f'{produit[3]} {produit[6]}'
-        row_cells[2].text = f'{produit[4]:.2f} €'
+        row_cells[1].text = f'{format_number(produit[3])}' if produit[6] is None else f'{format_number(produit[3])} {produit[6]}'
+        row_cells[2].text = f'{format_number(produit[4])} €'
         if show_remise_column:
-            row_cells[3].text = f'{produit[5]:.2f} €'
-            total = (produit[3] * produit[4]) - produit[5]
-            row_cells[4].text = f'{total:.2f} €'
+            row_cells[3].text = f'{format_number(produit[5])} €'
+            try:
+                if produit[3] and produit[3] not in ["Forfait", "Ensemble"]:
+                    quantite = float(str(produit[3]).replace(',', '.'))
+                    total = (quantite * produit[4]) - produit[5]
+                else:
+                    total = produit[4] - produit[5]
+            except (ValueError, TypeError):
+                total = produit[4] - produit[5]
+            row_cells[4].text = f'{format_number(total)} €'
         else:
-            total = produit[3] * produit[4]
-            row_cells[3].text = f'{total:.2f} €'
+            try:
+                if produit[3] and produit[3] not in ["Forfait", "Ensemble"]:
+                    quantite = float(str(produit[3]).replace(',', '.'))
+                    total = quantite * produit[4]
+                else:
+                    total = produit[4]
+            except (ValueError, TypeError):
+                total = produit[4]
+            row_cells[3].text = f'{format_number(total)} €'
         total_amount += total
 
         for cell in row_cells:
@@ -325,15 +365,29 @@ def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id co
             option_cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
             
             # Autres cellules
-            row_cells[1].text = f'{option[3]}' if option[6] is None else f'{option[3]} {option[6]}'
-            row_cells[2].text = f'{option[4]:.2f} €'
+            row_cells[1].text = f'{format_number(option[3])}' if option[6] is None else f'{format_number(option[3])} {option[6]}'
+            row_cells[2].text = f'{format_number(option[4])} €'
             if show_remise_column:
-                row_cells[3].text = f'{option[5]:.2f} €'
-                total = (option[3] * option[4]) - option[5]
-                row_cells[4].text = f'{total:.2f} €'
+                row_cells[3].text = f'{format_number(option[5])} €'
+                try:
+                    if option[3] and option[3] not in ["Forfait", "Ensemble"]:
+                        quantite = float(str(option[3]).replace(',', '.'))
+                        total = (quantite * option[4]) - option[5]
+                    else:
+                        total = option[4] - option[5]
+                except (ValueError, TypeError):
+                    total = option[4] - option[5]
+                row_cells[4].text = f'{format_number(total)} €'
             else:
-                total = option[3] * option[4]
-                row_cells[3].text = f'{total:.2f} €'
+                try:
+                    if option[3] and option[3] not in ["Forfait", "Ensemble"]:
+                        quantite = float(str(option[3]).replace(',', '.'))
+                        total = quantite * option[4]
+                    else:
+                        total = option[4]
+                except (ValueError, TypeError):
+                    total = option[4]
+                row_cells[3].text = f'{format_number(total)} €'
 
             # Style des autres cellules
             for cell in row_cells[1:]:
@@ -441,12 +495,16 @@ def save_document(document, dossier_id):
 
 def generate_devis(dossier_id):
     dossier = get_dossier(dossier_id)
-    if not dossier:
-        print(f"Erreur : Aucun dossier trouvé avec l'identifiant {dossier_id}.")
+    if not isinstance(dossier, tuple):
+        print(f"Erreur: Le dossier {dossier_id} n'a pas été trouvé ou n'est pas au bon format")
         return False
 
     produits = get_produits(dossier_id)
+    if not produits:
+        produits = []
     options = get_options(dossier_id)
+    if not options:
+        options = []  
     document = Document()
 
     set_document_margins(document, top=0.5, bottom=0.5, left=0.5, right=0.5)
@@ -456,33 +514,44 @@ def generate_devis(dossier_id):
     total_amount = add_produits_table(document, produits, dossier_id)
     
     # Calculate totals
-    acompte_percentage = float(dossier[5])
+    acompte_percentage = 50.0
     acompte_amount = total_amount * (acompte_percentage / 100)
     
     # Calculate options total if there are options
     options_total = 0
     if options:
         for option in options:
-            options_total += (option[3] * option[4]) - option[5]  # quantité * prix - remise
+            try:
+                if option[3] and option[3] not in ["Forfait", "Ensemble"]:
+                    quantite = float(str(option[3]).replace(',', '.'))
+                    option_total = (quantite * option[4]) - option[5]
+                else:
+                    option_total = option[4] - option[5]
+            except (ValueError, TypeError):
+                option_total = option[4] - option[5]
+                
+            options_total += option_total
+            
         total_with_options = total_amount + options_total
         acompte_with_options = total_with_options * (acompte_percentage / 100)
         
         # Add totals with options
         paragraphs = [
-            f"SOUS TOTAL : {total_amount:.2f} €",
-            f"SOUS TOTAL AVEC OPTIONS : {total_with_options:.2f} €",
-            f"ACOMPTE A VERSER SI SIGNATURE DU DEVIS SANS OPTIONS : {acompte_amount:.2f} €",
-            f"ACOMPTE A VERSER SI SIGNATURE DU DEVIS AVEC OPTIONS : {acompte_with_options:.2f} €"
+            f"SOUS TOTAL : {format_number(total_amount)} €",
+            f"SOUS TOTAL AVEC OPTIONS : {format_number(total_with_options)} €",
+            f"ACOMPTE A VERSER SI SIGNATURE DU DEVIS SANS OPTIONS : {format_number(acompte_amount)} €",
+            f"ACOMPTE A VERSER SI SIGNATURE DU DEVIS AVEC OPTIONS : {format_number(acompte_with_options)} €"
         ]
     else:
         # Add total without options
         paragraphs = [
-            f"SOUS TOTAL : {total_amount:.2f} €",
-            f"ACOMPTE A VERSER : {acompte_amount:.2f} €"
+            f"SOUS TOTAL : {format_number(total_amount)} €",
+            f"ACOMPTE A VERSER : {format_number(acompte_amount)} €"
         ]
 
     for text in paragraphs:
         paragraph = document.add_paragraph()
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         if "AVEC OPTIONS" in text:
             parts = text.split("AVEC OPTIONS")
             run = paragraph.add_run(parts[0])
@@ -491,8 +560,8 @@ def generate_devis(dossier_id):
             run.bold = True
             if "ACOMPTE A VERSER SI SIGNATURE DU DEVIS AVEC OPTIONS" in text:
                 run.font.color.rgb = colorRed
-            run = paragraph.add_run(parts[1])
-            run.bold = True
+                run = paragraph.add_run(parts[1])
+                run.bold = True
         elif "SANS OPTIONS" in text:
             parts = text.split("SANS OPTIONS")
             run = paragraph.add_run(parts[0])
@@ -507,21 +576,28 @@ def generate_devis(dossier_id):
             run.bold = True
         paragraph.paragraph_format.space_after = Pt(0)
 
-    paragraph = document.add_paragraph("TVA NON APPLICABLE - Art. 293 B du CGI")
-    run = paragraph.runs[0]
-    run.font.size = Pt(7)
-    paragraph.paragraph_format.space_before = Pt(6)
-    paragraph.paragraph_format.space_after = Pt(0)
+        paragraph = document.add_paragraph("TVA NON APPLICABLE - Art. 293 B du CGI")
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        run = paragraph.runs[0]
+        run.font.size = Pt(7)
+        paragraph.paragraph_format.space_before = Pt(6)
+        paragraph.paragraph_format.space_after = Pt(0)
 
-    add_footer_to_last_page(document)
-    return save_document(document, dossier_id)
+        add_footer_to_last_page(document)
+        return save_document(document, dossier_id)
 
 def get_dossier(dossier_id):
-    dossiers = get_dossiers()
-    for dossier in dossiers:
-        if dossier[0] == dossier_id:
-            return dossier
-    return None
+    """Récupère un dossier par son ID"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM dossiers WHERE id = ?', (dossier_id,))
+        dossier = cursor.fetchone()
+        conn.close()
+        return dossier
+    except Exception as e:
+        print(f"Erreur lors de la récupération du dossier: {e}")
+        return None
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

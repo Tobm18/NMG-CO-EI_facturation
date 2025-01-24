@@ -56,17 +56,18 @@ class ListeDevis(QWidget):
         dossiers = get_dossiers()
         self.table.setRowCount(len(dossiers))
         for row, dossier in enumerate(dossiers):
-            for col in range(3):
-                item = QTableWidgetItem(dossier[col + 1])
+            # Colonnes 1, 2, 3 correspondent aux indices 1, 2, 3 dans le tuple dossier
+            for col, index in enumerate([1, 2, 3]):  # numero_dossier, adresse_chantier, libelle_travaux
+                item = QTableWidgetItem(str(dossier[index]))
                 item.setFlags(Qt.ItemIsEnabled)
                 if row % 2 == 0:
                     item.setBackground(QColor("#f9f9f9"))
                 else:
                     item.setBackground(QColor("#e0e0e0"))
                 self.table.setItem(row, col, item)
-            devis_signe = dossier[9]
-            item_signe = QTableWidgetItem("Signé" if devis_signe else "Non signé")
-            item_signe.setForeground(QBrush(QColor("green") if devis_signe else QColor("red")))
+            devis_signe = dossier[8]  # Index corrigé pour devis_signe
+            item_signe = QTableWidgetItem("Signé" if devis_signe == 1 else "Non signé")
+            item_signe.setForeground(QBrush(QColor("green") if devis_signe == 1 else QColor("red")))
             item_signe.setFlags(Qt.ItemIsEnabled)
             item_signe.setTextAlignment(Qt.AlignCenter)  # Center align the text
             if row % 2 == 0:
@@ -79,9 +80,28 @@ class ListeDevis(QWidget):
             self.table.setCellWidget(row, 4, download_button)
 
     def calculate_total_devis(self, dossier_id):
-        produits = get_produits(dossier_id)
-        total = sum((produit[3] * produit[4]) - produit[5] for produit in produits)
-        return total
+        try:
+            produits = get_produits(dossier_id)
+            total = 0
+            for produit in produits:
+                prix_unitaire = float(produit[4])  # prix unitaire à l'index 4
+                remise = float(produit[5])  # remise à l'index 5
+                quantite = produit[3]  # quantité (TEXT) à l'index 3
+                
+                # Calcul du total selon le type de quantité
+                if quantite and quantite not in ["Forfait", "Ensemble"]:
+                    try:
+                        quantite_num = float(str(quantite).replace(',', '.'))
+                        total += (quantite_num * prix_unitaire) - remise
+                    except (ValueError, TypeError):
+                        total += prix_unitaire - remise
+                else:
+                    total += prix_unitaire - remise
+                    
+            return total
+        except Exception as e:
+            print(f"Erreur dans calculate_total_devis: {e}")
+            return 0
 
     def generate_devis(self, dossier_id):
         try:
