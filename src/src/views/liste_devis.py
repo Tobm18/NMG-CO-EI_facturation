@@ -88,6 +88,9 @@ class ListeDevis(QWidget):
             from src.utils.generate_devis import generate_devis
             if generate_devis(dossier_id):
                 QMessageBox.information(self, "Devis", "Devis téléchargé avec succès")
+            else:
+                # Ne rien faire si l'utilisateur a annulé
+                pass
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Une erreur s'est produite : {e}")
 

@@ -413,10 +413,17 @@ def save_document(document, dossier_id):
     root = tk.Tk()
     root.withdraw()
 
+    # Get dossier to access numero_dossier
+    dossier = get_dossier(dossier_id)
+    if not dossier:
+        return False
+        
+    numero_dossier = dossier[1].replace('/', '-')  # Remplacer '/' par '-'
+
     document_name = filedialog.asksaveasfilename(
         defaultextension=".docx",
         filetypes=[("Document Word", "*.docx")],
-        initialfile=f'devis_{dossier_id}.docx',
+        initialfile=f'devis_{numero_dossier}.docx',
         title="Enregistrer le devis sous..."
     )
 

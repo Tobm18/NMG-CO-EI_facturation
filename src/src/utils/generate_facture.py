@@ -420,17 +420,24 @@ def save_document(document, dossier_id, invoice_type):
     root = tk.Tk()
     root.withdraw()
 
+    # Get dossier to access numero_dossier
+    dossier = get_dossier(dossier_id)
+    if not dossier:
+        return False
+        
+    numero_dossier = dossier[1].replace('/', '-')  # Remplacer '/' par '-'
+
     # Determine the file name based on the invoice type
     if invoice_type == "Facture classique":
-        file_name = f'facture_{dossier_id}.docx'
+        file_name = f'facture_{numero_dossier}.docx'
     elif invoice_type == "Facture aquittée":
-        file_name = f'facture_aquitte_{dossier_id}.docx'
+        file_name = f'facture_aquitte_{numero_dossier}.docx'
     elif invoice_type == "Facture d'acompte":
-        file_name = f'facture_acompte_{dossier_id}.docx'
+        file_name = f'facture_acompte_{numero_dossier}.docx'
     elif invoice_type == "Facture définitive":
-        file_name = f'facture_definitive_{dossier_id}.docx'
+        file_name = f'facture_definitive_{numero_dossier}.docx'
     else:
-        file_name = f'facture_{dossier_id}.docx'
+        file_name = f'facture_{numero_dossier}.docx'
 
     document_name = filedialog.asksaveasfilename(
         defaultextension=".docx",
@@ -514,8 +521,7 @@ def generate_facture(dossier_id, invoice_type):
 
 
     add_footer_to_last_page(document)
-    if not save_document(document, dossier_id, invoice_type):
-        sys.exit(1)
+    return save_document(document, dossier_id, invoice_type)
 
 def get_dossier(dossier_id):
     dossiers = get_dossiers()

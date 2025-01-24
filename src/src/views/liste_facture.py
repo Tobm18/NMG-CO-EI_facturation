@@ -105,8 +105,12 @@ class ListeFacture(QWidget):
         dialog.accept()
         try:
             from src.utils.generate_facture import generate_facture
-            if generate_facture(dossier_id, invoice_type):
+            result = generate_facture(dossier_id, invoice_type)
+            if result:
                 QMessageBox.information(self, "Facture", f"{invoice_type} téléchargée avec succès")
+            else:
+                # Ne rien faire si l'utilisateur a annulé
+                pass
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Une erreur s'est produite : {e}")
 

@@ -969,7 +969,8 @@ class MainWindow(QWidget):
                 if generate_devis(self.current_dossier_id):
                     QMessageBox.information(self, "Devis", "Devis généré avec succès")
                 else:
-                    self.show_error_message("Erreur", "L'enregistrement du devis a été annulé")
+                    # Ne rien faire si l'utilisateur a annulé
+                    pass
             else:
                 self.show_error_message("Erreur", "Aucun dossier sélectionné")
         except Exception as e:
@@ -1007,7 +1008,8 @@ class MainWindow(QWidget):
                 if generate_facture(self.current_dossier_id, invoice_type):
                     QMessageBox.information(self, "Facture", f"{invoice_type} générée avec succès")
             else:
-                self.show_error_message("Erreur", "Aucun dossier sélectionné")
+                # Ne rien faire si l'utilisateur a annulé
+                pass
         except Exception as e:
             self.show_error_message("Erreur", f"Une erreur s'est produite : {e}")
 
