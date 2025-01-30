@@ -312,34 +312,35 @@ def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id co
         set_cell_background_color(hdr_cells[idx], colorBlueBackground)
 
     # Corps du tableau - Produits
-    total_amount = 0
+    total_produits_sans_remise = 0  # Total des produits sans remise
+    total_produits_avec_remise = 0  # Total des produits avec remise
+    
     for produit in produits:
         row_cells = table.add_row().cells
         row_cells[0].text = produit[2]
         row_cells[1].text = f'{format_number(produit[3])}' if produit[6] is None else f'{format_number(produit[3])} {produit[6]}'
         row_cells[2].text = f'{format_number(produit[4])} €'
+        
+        # Calculer d'abord le total sans remise
+        try:
+            if produit[3] and produit[3] not in ["Forfait", "Ensemble"]:
+                quantite = float(str(produit[3]).replace(',', '.'))
+                total_sans_remise = quantite * produit[4]
+            else:
+                total_sans_remise = produit[4]
+        except (ValueError, TypeError):
+            total_sans_remise = produit[4]
+        
+        total_avec_remise = total_sans_remise - produit[5]
+        total_produits_sans_remise += total_sans_remise
+        total_produits_avec_remise += total_avec_remise
+
+        # Affichage dans le tableau
         if show_remise_column:
             row_cells[3].text = f'{format_number(produit[5])} €'
-            try:
-                if produit[3] and produit[3] not in ["Forfait", "Ensemble"]:
-                    quantite = float(str(produit[3]).replace(',', '.'))
-                    total = (quantite * produit[4]) - produit[5]
-                else:
-                    total = produit[4] - produit[5]
-            except (ValueError, TypeError):
-                total = produit[4] - produit[5]
-            row_cells[4].text = f'{format_number(total)} €'
+            row_cells[4].text = f'{format_number(total_avec_remise)} €'
         else:
-            try:
-                if produit[3] and produit[3] not in ["Forfait", "Ensemble"]:
-                    quantite = float(str(produit[3]).replace(',', '.'))
-                    total = quantite * produit[4]
-                else:
-                    total = produit[4]
-            except (ValueError, TypeError):
-                total = produit[4]
-            row_cells[3].text = f'{format_number(total)} €'
-        total_amount += total
+            row_cells[3].text = f'{format_number(total_avec_remise)} €'
 
         for cell in row_cells:
             cell.paragraphs[0].style.font.name = "Arial"
@@ -367,27 +368,23 @@ def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id co
             # Autres cellules
             row_cells[1].text = f'{format_number(option[3])}' if option[6] is None else f'{format_number(option[3])} {option[6]}'
             row_cells[2].text = f'{format_number(option[4])} €'
+            # Calculer le total sans remise pour les options
+            try:
+                if option[3] and option[3] not in ["Forfait", "Ensemble"]:
+                    quantite = float(str(option[3]).replace(',', '.'))
+                    total_sans_remise = quantite * option[4]
+                else:
+                    total_sans_remise = option[4]
+            except (ValueError, TypeError):
+                total_sans_remise = option[4]
+                
+            total_avec_remise = total_sans_remise - option[5]
+
             if show_remise_column:
                 row_cells[3].text = f'{format_number(option[5])} €'
-                try:
-                    if option[3] and option[3] not in ["Forfait", "Ensemble"]:
-                        quantite = float(str(option[3]).replace(',', '.'))
-                        total = (quantite * option[4]) - option[5]
-                    else:
-                        total = option[4] - option[5]
-                except (ValueError, TypeError):
-                    total = option[4] - option[5]
-                row_cells[4].text = f'{format_number(total)} €'
+                row_cells[4].text = f'{format_number(total_avec_remise)} €'
             else:
-                try:
-                    if option[3] and option[3] not in ["Forfait", "Ensemble"]:
-                        quantite = float(str(option[3]).replace(',', '.'))
-                        total = quantite * option[4]
-                    else:
-                        total = option[4]
-                except (ValueError, TypeError):
-                    total = option[4]
-                row_cells[3].text = f'{format_number(total)} €'
+                row_cells[3].text = f'{format_number(total_avec_remise)} €'
 
             # Style des autres cellules
             for cell in row_cells[1:]:
@@ -422,7 +419,72 @@ def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id co
     space = document.add_paragraph(f"")
     space.paragraph_format.space_after = Pt(0)
 
-    return total_amount
+    return total_produits_sans_remise, total_produits_avec_remise  # Retourner les deux totaux
+
+def add_page_number(paragraph):
+    """Ajoute la numérotation des pages au format 'Page X/Y'."""
+    run = paragraph.add_run("Page ")
+    run.font.name = "Arial"
+
+    # Champ PAGE
+    run = paragraph.add_run()
+    
+    # Début du champ
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+    run._r.append(fldChar1)
+
+    # Instruction PAGE
+    instrText = OxmlElement('w:instrText')
+    instrText.text = ' PAGE '
+    run._r.append(instrText)
+
+    # Séparateur
+    separate = OxmlElement('w:fldChar')
+    separate.set(qn('w:fldCharType'), 'separate')
+    run._r.append(separate)
+
+    # Texte par défaut
+    t = OxmlElement('w:t')
+    t.text = "1"
+    run._r.append(t)
+
+    # Fin du champ
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'end')
+    run._r.append(fldChar2)
+
+    # Séparateur " / "
+    run = paragraph.add_run(" / ")
+    run.font.name = "Arial"
+
+    # Champ NUMPAGES
+    run = paragraph.add_run()
+    
+    # Début du champ
+    fldChar3 = OxmlElement('w:fldChar')
+    fldChar3.set(qn('w:fldCharType'), 'begin')
+    run._r.append(fldChar3)
+
+    # Instruction NUMPAGES
+    instrText2 = OxmlElement('w:instrText')
+    instrText2.text = ' NUMPAGES '
+    run._r.append(instrText2)
+
+    # Séparateur
+    separate2 = OxmlElement('w:fldChar')
+    separate2.set(qn('w:fldCharType'), 'separate')
+    run._r.append(separate2)
+
+    # Texte par défaut
+    t2 = OxmlElement('w:t')
+    t2.text = "1"
+    run._r.append(t2)
+
+    # Fin du champ
+    fldChar4 = OxmlElement('w:fldChar')
+    fldChar4.set(qn('w:fldCharType'), 'end')
+    run._r.append(fldChar4)
 
 def add_footer_to_last_page(document):
     """Ajoute un pied de page au bas de la dernière page du document."""
@@ -494,6 +556,24 @@ def save_document(document, dossier_id):
         return False
 
 def generate_devis(dossier_id):
+    """Génère un devis pour le dossier spécifié."""
+    document = Document()
+    
+    # Ajouter une section avec des en-têtes/pieds de page différents
+    section = document.sections[0]
+    section.different_first_page_header_footer = False
+    section.footer_distance = Inches(0.5)
+
+    # Créer le pied de page pour la section
+    footer = section.footer
+    
+    # Ajouter la numérotation dans le pied de page
+    page_number_paragraph = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+    page_number_paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    page_number_paragraph.paragraph_format.space_after = Pt(0)
+    page_number_paragraph.paragraph_format.space_before = Pt(12)
+    add_page_number(page_number_paragraph)
+
     dossier = get_dossier(dossier_id)
     if not isinstance(dossier, tuple):
         print(f"Erreur: Le dossier {dossier_id} n'a pas été trouvé ou n'est pas au bon format")
@@ -505,50 +585,67 @@ def generate_devis(dossier_id):
     options = get_options(dossier_id)
     if not options:
         options = []  
-    document = Document()
 
     set_document_margins(document, top=0.5, bottom=0.5, left=0.5, right=0.5)
     create_header(document)
     add_dossier_info(document, dossier)
     description_dossier(document, dossier)
-    total_amount = add_produits_table(document, produits, dossier_id)
+    total_produits_sans_remise, total_produits_avec_remise = add_produits_table(document, produits, dossier_id)
     
     # Calculate totals
     acompte_percentage = 50.0
-    acompte_amount = total_amount * (acompte_percentage / 100)
     
-    # Calculate options total if there are options
-    options_total = 0
+    # Initialiser les totaux des options
+    total_options_sans_remise = 0
+    total_options_avec_remise = 0
+    
+    # Calculer séparément les totaux des options
     if options:
         for option in options:
             try:
                 if option[3] and option[3] not in ["Forfait", "Ensemble"]:
                     quantite = float(str(option[3]).replace(',', '.'))
-                    option_total = (quantite * option[4]) - option[5]
+                    option_sans_remise = quantite * option[4]
                 else:
-                    option_total = option[4] - option[5]
+                    option_sans_remise = option[4]
             except (ValueError, TypeError):
-                option_total = option[4] - option[5]
-                
-            options_total += option_total
+                option_sans_remise = option[4]
             
-        total_with_options = total_amount + options_total
-        acompte_with_options = total_with_options * (acompte_percentage / 100)
+            option_avec_remise = option_sans_remise - option[5]
+            total_options_sans_remise += option_sans_remise
+            total_options_avec_remise += option_avec_remise
+
+        # Calculs finaux
+        sous_total = total_produits_sans_remise  # Total produits sans remises
+        sous_total_avec_options = total_produits_sans_remise + total_options_sans_remise  # Total produits et options sans remises
+        total_a_payer = total_produits_avec_remise  # Total produits avec remises
+        total_a_payer_avec_options = total_produits_avec_remise + total_options_avec_remise  # Total produits et options avec remises
         
-        # Add totals with options
+        # Calcul des acomptes
+        acompte = total_a_payer * (acompte_percentage / 100)
+        acompte_avec_options = total_a_payer_avec_options * (acompte_percentage / 100)
+        
         paragraphs = [
-            f"SOUS TOTAL : {format_number(total_amount)} €",
-            f"SOUS TOTAL AVEC OPTIONS : {format_number(total_with_options)} €",
-            f"ACOMPTE A VERSER SI SIGNATURE DU DEVIS SANS OPTIONS : {format_number(acompte_amount)} €",
-            f"ACOMPTE A VERSER SI SIGNATURE DU DEVIS AVEC OPTIONS : {format_number(acompte_with_options)} €"
+            f"SOUS TOTAL : {format_number(sous_total)} €",
+            f"TOTAL A PAYER : {format_number(total_a_payer)} €",
+            f"ACOMPTE A VERSER : {format_number(acompte)} €",
+            f"SOUS TOTAL AVEC OPTIONS : {format_number(sous_total_avec_options)} €",
+            f"TOTAL A PAYER AVEC OPTIONS : {format_number(total_a_payer_avec_options)} €",
+            f"ACOMPTE A VERSER AVEC OPTIONS : {format_number(acompte_avec_options)} €"
         ]
     else:
-        # Add total without options
+        # Sans options, les calculs sont plus simples
+        sous_total = total_produits_sans_remise
+        total_a_payer = total_produits_avec_remise
+        acompte = total_a_payer * (acompte_percentage / 100)
+        
         paragraphs = [
-            f"SOUS TOTAL : {format_number(total_amount)} €",
-            f"ACOMPTE A VERSER : {format_number(acompte_amount)} €"
+            f"SOUS TOTAL : {format_number(sous_total)} €",
+            f"TOTAL A PAYER : {format_number(total_a_payer)} €",
+            f"ACOMPTE A VERSER : {format_number(acompte)} €"
         ]
 
+    # Ajout des paragraphes au document
     for text in paragraphs:
         paragraph = document.add_paragraph()
         paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
@@ -558,16 +655,6 @@ def generate_devis(dossier_id):
             run.bold = True
             run = paragraph.add_run("AVEC OPTIONS")
             run.bold = True
-            if "ACOMPTE A VERSER SI SIGNATURE DU DEVIS AVEC OPTIONS" in text:
-                run.font.color.rgb = colorRed
-                run = paragraph.add_run(parts[1])
-                run.bold = True
-        elif "SANS OPTIONS" in text:
-            parts = text.split("SANS OPTIONS")
-            run = paragraph.add_run(parts[0])
-            run.bold = True
-            run = paragraph.add_run("SANS OPTIONS")
-            run.bold = True
             run.font.color.rgb = colorRed
             run = paragraph.add_run(parts[1])
             run.bold = True
@@ -576,15 +663,15 @@ def generate_devis(dossier_id):
             run.bold = True
         paragraph.paragraph_format.space_after = Pt(0)
 
-        paragraph = document.add_paragraph("TVA NON APPLICABLE - Art. 293 B du CGI")
-        paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        run = paragraph.runs[0]
-        run.font.size = Pt(7)
-        paragraph.paragraph_format.space_before = Pt(6)
-        paragraph.paragraph_format.space_after = Pt(0)
+    paragraph = document.add_paragraph("TVA NON APPLICABLE - Art. 293 B du CGI")
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    run = paragraph.runs[0]
+    run.font.size = Pt(7)
+    paragraph.paragraph_format.space_before = Pt(6)
+    paragraph.paragraph_format.space_after = Pt(0)
 
-        add_footer_to_last_page(document)
-        return save_document(document, dossier_id)
+    add_footer_to_last_page(document)
+    return save_document(document, dossier_id)
 
 def get_dossier(dossier_id):
     """Récupère un dossier par son ID"""
