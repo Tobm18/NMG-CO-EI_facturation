@@ -184,5 +184,17 @@ def get_options(dossier_id):
         print(f"Erreur lors de la récupération des options : {e}")
         return []
 
+def get_addresses():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, address FROM addresses')
+        addresses = cursor.fetchall()
+        conn.close()
+        return addresses
+    except Exception as e:
+        print(f"Erreur lors de la récupération des adresses : {e}")
+        return []
+
 if __name__ == "__main__":
     create_tables()

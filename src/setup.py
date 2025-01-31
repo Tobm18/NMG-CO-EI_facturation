@@ -75,6 +75,13 @@ def create_database(data_dir):
         FOREIGN KEY (dossier_id) REFERENCES dossiers (id)
     )''')
     
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS addresses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            address TEXT UNIQUE
+        )
+        ''')
+
     conn.commit()
     conn.close()
     

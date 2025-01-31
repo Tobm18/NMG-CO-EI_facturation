@@ -102,6 +102,13 @@ def init_database():
             unite TEXT,
             FOREIGN KEY (dossier_id) REFERENCES dossiers (id)
         )''')
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS addresses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            address TEXT UNIQUE
+        )
+        ''')
         
         conn.commit()
         conn.close()

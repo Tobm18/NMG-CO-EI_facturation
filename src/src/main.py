@@ -29,11 +29,13 @@ from src.database.database import (
     delete_dossier,
     delete_produits as delete_produits,
     delete_options as delete_options,
-    create_tables
+    create_tables,
+    get_addresses
 )
 from src.database.databaseinit import init_database
 from src.views.liste_facture import ListeFacture
 from src.views.liste_devis import ListeDevis
+from src.views.manage_addresses import ManageAddressesDialog
 
 def load_stylesheet():
     try:
@@ -218,10 +220,15 @@ class MainWindow(QWidget):
         self.devis_button.setStyleSheet(self.get_button_style(False))
         self.devis_button.clicked.connect(self.show_devis)
 
+        self.adresses_button = QPushButton("Liste des Adresses")
+        self.adresses_button.setStyleSheet(self.get_button_style(False))
+        self.adresses_button.clicked.connect(self.show_addresses)
+
         bandeau_layout.addWidget(self.bandeau_label)
         bandeau_layout.addWidget(self.dossiers_button)
         bandeau_layout.addWidget(self.factures_button)
         bandeau_layout.addWidget(self.devis_button)
+        bandeau_layout.addWidget(self.adresses_button)
         bandeau_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins
         bandeau_layout.setSpacing(0)  # Remove spacing
 
@@ -301,20 +308,10 @@ class MainWindow(QWidget):
         self.numero_dossier_input = QLineEdit()
         self.adresse_chantier_input = NoScrollComboBox()
         self.adresse_chantier_input.setEditable(True)
-        self.adresse_chantier_input.addItems([
-            "",  # Empty first value
-            "12 Av Henri Isnard - 06140 Vence", 
-            "60 Av de Verdun - 06800 Cagne-sur-Mer", 
-            "9 Av Thiers - 06130 Grasse",
-            "7 Avenue de Grande Bretagne - 98000 Monaco",
-            "1225 Route de la Fénerie - 06580 Pégomas",
-            "23 Av Mont Fleury - 06300 Nice",
-            "38 Bd de l'Esterel - 06150 Cannes La Bocca",
-            "1544 Corniche d'Agrimont - 06700 Saint-Laurent-du-Var",
-            "342 Chemin du Château d'Eau - 06610 La Gaude",
-            "67 Bd Sadi Carnot - 06110 Le Cannet",
-            "55 Bd Marechal Juin - 06800 Cagne-sur-Mer"
-        ])
+        addresses = get_addresses()
+        self.adresse_chantier_input.addItem("")
+        for addr in addresses:
+            self.adresse_chantier_input.addItem(addr[1])
         self.libelle_travaux_input = QLineEdit()
         self.adresse_facturation_input = NoScrollComboBox()
         self.adresse_facturation_input.addItems([
@@ -556,6 +553,11 @@ class MainWindow(QWidget):
         # Vue 3 : Liste des Devis
         self.devis_view = ListeDevis()
         self.stacked_layout.addWidget(self.devis_view)
+
+        # Vue 4 : Liste des Adresses
+        self.adresses_view = ManageAddressesDialog()
+        self.adresses_view.addresses_modified.connect(self.refresh_addresses)
+        self.stacked_layout.addWidget(self.adresses_view)
 
         # Ajouter le bandeau et le contenu principal au layout principal
         self.main_layout.addWidget(bandeau_widget)  # Add bandeau_widget instead of bandeau_layout
@@ -1277,6 +1279,7 @@ class MainWindow(QWidget):
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
         self.factures_button.setStyleSheet(self.get_button_style(True))
         self.devis_button.setStyleSheet(self.get_button_style(False))
+        self.adresses_button.setStyleSheet(self.get_button_style(False))
 
     def show_devis(self):
         self.devis_view.load_devis()
@@ -1284,12 +1287,21 @@ class MainWindow(QWidget):
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
         self.factures_button.setStyleSheet(self.get_button_style(False))
         self.devis_button.setStyleSheet(self.get_button_style(True))
+        self.adresses_button.setStyleSheet(self.get_button_style(False))
 
     def show_dossiers(self):
         self.stacked_layout.setCurrentWidget(self.dossiers_splitter)
         self.dossiers_button.setStyleSheet(self.get_button_style(True))
         self.factures_button.setStyleSheet(self.get_button_style(False))
         self.devis_button.setStyleSheet(self.get_button_style(False))
+        self.adresses_button.setStyleSheet(self.get_button_style(False))
+
+    def show_addresses(self):
+        self.stacked_layout.setCurrentWidget(self.adresses_view)
+        self.dossiers_button.setStyleSheet(self.get_button_style(False))
+        self.factures_button.setStyleSheet(self.get_button_style(False))
+        self.devis_button.setStyleSheet(self.get_button_style(False))
+        self.adresses_button.setStyleSheet(self.get_button_style(True))
 
     def get_button_style(self, active):
         if (active):
@@ -1352,6 +1364,19 @@ class MainWindow(QWidget):
         for row in range(self.dossier_list.count()):
             item = self.dossier_list.item(row)
             item.setHidden(query not in item.text().lower())
+
+    def refresh_addresses(self):
+        """Update the address combobox when addresses are modified"""
+        current_text = self.adresse_chantier_input.currentText()
+        self.adresse_chantier_input.clear()
+        self.adresse_chantier_input.addItem("")
+        addresses = get_addresses()
+        for addr in addresses:
+            self.adresse_chantier_input.addItem(addr[1])
+        # Try to restore the previously selected address if it still exists
+        index = self.adresse_chantier_input.findText(current_text)
+        if index >= 0:
+            self.adresse_chantier_input.setCurrentIndex(index)
 
 def get_last_dossier_number():
     try:

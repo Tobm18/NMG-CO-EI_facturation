@@ -111,7 +111,7 @@ def create_header(document, invoice_type):
         invoice_title = "FACTURE DÉFINITIVE"
 
     paragraphs = [
-        (invoice_title, 16, colorBlueText, True, False),
+        (invoice_title, 16, colorBlueText if invoice_title != "FACTURE AQUITTÉE" else colorRed, True, False),
         ("Besoin d'un service... c'est simple... NMG&CO est là", 10, colorBlackText, True, False),
         ("TRAVAUX DIVERS - MAISON - JARDIN", 10, colorBlackText, True, False),
     ]
@@ -497,34 +497,42 @@ def add_page_number(paragraph):
     fldChar4.set(qn('w:fldCharType'), 'end')
     run._r.append(fldChar4)
 
-def add_footer_to_last_page(document):
+def add_footer_to_last_page(document, invoice_type):
     """Ajoute un pied de page au bas de la dernière page du document."""
     # Ajouter un espace avant le footer
     space = document.add_paragraph(f"")
     space.paragraph_format.space_after = Pt(0)
 
-    # Premier paragraphe
-    paragraph1 = document.add_paragraph()
-    paragraph1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if invoice_type == "Facture aquittée":
+        paragraph1 = document.add_paragraph()
+        paragraph1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = paragraph1.add_run(f"Facture payée le : ")
+        run.font.name = "Arial"
+        run.font.color.rgb = colorRed
+        run.bold = True
+    else:
+        # Premier paragraphe
+        paragraph1 = document.add_paragraph()
+        paragraph1.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    text = "Cette "
-    text_facture = "facture"
-    text_rest = f" est payable à sa date d'émission soit au plus tard le {datetime.now().strftime('%d/%m/%Y')}. En cas de retard de paiement,\nune pénalité fixée à 15% du montant net de la facture, par mois de retard entamé, est exigible sans rappel le jour suivant la date\nlimite de règlement. Aucun escompte pour paiement anticipé."
+        text = "Cette "
+        text_facture = "facture"
+        text_rest = f" est payable à sa date d'émission soit au plus tard le {datetime.now().strftime('%d/%m/%Y')}. En cas de retard de paiement,\nune pénalité fixée à 15% du montant net de la facture, par mois de retard entamé, est exigible sans rappel le jour suivant la date\nlimite de règlement. Aucun escompte pour paiement anticipé."
 
-    run1 = paragraph1.add_run(text)
-    run1.font.name = "Arial"
-    run1.font.size = Pt(8)
-    run1.font.color.rgb = colorGreyText
+        run1 = paragraph1.add_run(text)
+        run1.font.name = "Arial"
+        run1.font.size = Pt(8)
+        run1.font.color.rgb = colorGreyText
 
-    run2 = paragraph1.add_run(text_facture)
-    run2.font.name = "Arial"
-    run2.font.size = Pt(8)
-    run2.font.color.rgb = colorRed  # Rouge
+        run2 = paragraph1.add_run(text_facture)
+        run2.font.name = "Arial"
+        run2.font.size = Pt(8)
+        run2.font.color.rgb = colorRed  # Rouge
 
-    run3 = paragraph1.add_run(text_rest)
-    run3.font.name = "Arial"
-    run3.font.size = Pt(8)
-    run3.font.color.rgb = colorGreyText
+        run3 = paragraph1.add_run(text_rest)
+        run3.font.name = "Arial"
+        run3.font.size = Pt(8)
+        run3.font.color.rgb = colorGreyText
 
     # Deuxième paragraphe
     paragraph2 = document.add_paragraph()
@@ -702,7 +710,7 @@ def generate_facture(dossier_id, invoice_type):
     paragraph.paragraph_format.space_after = Pt(0)
     paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    add_footer_to_last_page(document)
+    add_footer_to_last_page(document, invoice_type)
     return save_document(document, dossier_id, invoice_type)
 
 def get_dossier(dossier_id):
