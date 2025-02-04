@@ -1,6 +1,6 @@
 import sys
 import subprocess
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QAbstractItemView, QMessageBox, QDialog, QLabel, QDialogButtonBox, QComboBox
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QAbstractItemView, QMessageBox, QDialog, QLabel, QDialogButtonBox, QComboBox, QLineEdit, QHBoxLayout  # Add this import
 from PyQt5.QtGui import QBrush, QColor
 from PyQt5.QtCore import Qt
 from src.database.database import get_dossiers, get_produits  # Correction de l'import
@@ -17,9 +17,51 @@ class ListeFacture(QWidget):
         self.setGeometry(100, 100, 800, 600)
 
         layout = QVBoxLayout()
+        
+        # Création d'un layout horizontal pour la recherche et le filtre
+        search_layout = QHBoxLayout()
+        search_layout.setContentsMargins(0, 0, 0, 10)  # Add bottom margin to the layout
+        search_layout.setSpacing(10)  # Add spacing between widgets
+        
+        # Ajout du champ de recherche
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Rechercher...")
+        self.search_input.textChanged.connect(self.filter_table)
+        self.search_input.setStyleSheet("""
+            QLineEdit {
+                padding: 8px;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                font-size: 14px;
+                min-height: 20px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #005980;
+            }
+        """)
+        
+        # Ajout du filtre de statut
+        self.status_filter = QComboBox()
+        self.status_filter.addItems(["Tous", "Payé", "Non payé"])
+        self.status_filter.currentTextChanged.connect(self.filter_table)
+        self.status_filter.setStyleSheet("""
+            QComboBox {
+                padding: 8px;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                min-width: 120px;
+                font-size: 14px;
+                min-height: 20px;
+            }
+        """)
+        
+        search_layout.addWidget(self.search_input, stretch=1)  # Give search input more space
+        search_layout.addWidget(self.status_filter)
+        layout.addLayout(search_layout)
+
         self.table = QTableWidget()
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["Numéro Dossier", "Adresse Chantier", "Libellé Travaux", "Status", "Télécharger"])
+        self.table.setHorizontalHeaderLabels(["Numéro Dossier", "Adresse Chantier", "Libellé Travaux", "Statut", "Télécharger"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
@@ -78,6 +120,34 @@ class ListeFacture(QWidget):
             download_button = QPushButton("Télécharger la facture")
             download_button.clicked.connect(lambda _, d_id=dossier[0]: self.show_invoice_type_dialog(d_id))
             self.table.setCellWidget(row, 4, download_button)
+
+    def filter_table(self):
+        search_text = self.search_input.text().lower()
+        status_filter = self.status_filter.currentText()
+        
+        for row in range(self.table.rowCount()):
+            show_row = False
+            match_text = False
+            match_status = False
+            
+            # Vérification du texte de recherche
+            for col in range(self.table.columnCount() - 1):
+                item = self.table.item(row, col)
+                if item and search_text in item.text().lower():
+                    match_text = True
+                    break
+            
+            # Vérification du statut
+            status_item = self.table.item(row, 3)
+            if status_filter == "Tous":
+                match_status = True
+            elif status_filter == "Payé" and status_item.text() == "Payé":
+                match_status = True
+            elif status_filter == "Non payé" and status_item.text() == "Non payé":
+                match_status = True
+                
+            show_row = match_text and match_status
+            self.table.setRowHidden(row, not show_row)
 
     def show_invoice_type_dialog(self, dossier_id):
         dialog = QDialog(self)

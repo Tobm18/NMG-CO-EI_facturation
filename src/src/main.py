@@ -313,14 +313,12 @@ class MainWindow(QWidget):
         for addr in addresses:
             self.adresse_chantier_input.addItem(addr[1])
         self.libelle_travaux_input = QLineEdit()
-        self.adresse_facturation_input = NoScrollComboBox()
-        self.adresse_facturation_input.addItems([
-            "Identique à l'adresse chantier", 
-            "Autre"
-        ])
-        self.adresse_facturation_input.currentIndexChanged.connect(self.toggle_adresse_facturation)
-        self.adresse_facturation_custom_input = QLineEdit()
-        self.adresse_facturation_custom_input.setVisible(False)
+        self.adresse_facturation_input = NoScrollComboBox()  # Change this line
+        self.adresse_facturation_input.setEditable(True)     # Add this line
+        addresses = get_addresses()
+        self.adresse_facturation_input.addItem("")
+        for addr in addresses:
+            self.adresse_facturation_input.addItem(addr[1])  # Add addresses to combobox
         self.moyen_paiement_combo = NoScrollComboBox()
         self.moyen_paiement_combo.addItems(["Virement", "Espèces", "Chèque"])
         self.garantie_decennale_check = QCheckBox()
@@ -346,7 +344,6 @@ class MainWindow(QWidget):
         self.form_layout.addRow("Adresse chantier :", self.adresse_chantier_input)
         self.form_layout.addRow("Libellé travaux :", self.libelle_travaux_input)
         self.form_layout.addRow("Adresse facturation :", self.adresse_facturation_input)
-        self.form_layout.addRow("", self.adresse_facturation_custom_input)
         self.form_layout.addRow("Moyen de paiement :", self.moyen_paiement_combo)
         self.form_layout.addRow("Garantie décennale :", self.garantie_decennale_check)
         self.form_layout.addRow("Description :", self.description_input)
@@ -463,6 +460,9 @@ class MainWindow(QWidget):
         self.options_table.setColumnCount(7)
         self.options_table.setHorizontalHeaderLabels(["Désignation", "Quantité", "Unité", "Prix Unitaire", "Remise", "Total", ""])
         self.options_table.setEditTriggers(QTableWidget.AllEditTriggers)
+        # Ajout du défilement fluide pour le tableau des options
+        self.options_table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.options_table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         
         # Configuration identique au tableau des produits
         self.options_table.setColumnWidth(0, 300)
@@ -621,10 +621,7 @@ class MainWindow(QWidget):
             numero_dossier = self.numero_dossier_input.text()
             adresse_chantier = self.adresse_chantier_input.currentText()
             libelle_travaux = self.libelle_travaux_input.text()
-            if self.adresse_facturation_input.currentIndex() == 0:
-                adresse_facturation = self.adresse_chantier_input.currentText()
-            else:
-                adresse_facturation = self.adresse_facturation_custom_input.text()
+            adresse_facturation = self.adresse_facturation_input.currentText()
             moyen_paiement = self.moyen_paiement_combo.currentText()
             garantie_decennale = 1 if self.garantie_decennale_check.isChecked() else 0
             description = self.description_input.toPlainText()
@@ -698,6 +695,9 @@ class MainWindow(QWidget):
             new_produits = []
             for row in range(self.produits_table.rowCount()):
                 designation = self.produits_table.item(row, 0).text()
+                # Capitalize first letter of designation
+                designation = designation[0].upper() + designation[1:] if designation else ""
+                
                 quantite = self.produits_table.cellWidget(row, 1).currentText()
                 unite = self.produits_table.cellWidget(row, 2).currentText()
                 unite = None if unite == "aucune" else unite
@@ -706,13 +706,11 @@ class MainWindow(QWidget):
                 if designation or quantite or prix != 0.0:
                     new_produits.append((designation, quantite, prix, remise, unite))
 
-            # Delete old products first
             delete_produits(dossier_id)
-
-            # Add new products
             for produit in new_produits:
                 add_produit(dossier_id, *produit)
             return True
+            
         except ValueError:
             self.show_error_message("Erreur de saisie", "Veuillez entrer des valeurs numériques valides pour les champs numériques.")
             return False
@@ -725,6 +723,9 @@ class MainWindow(QWidget):
             new_options = []
             for row in range(self.options_table.rowCount()):
                 designation = self.options_table.item(row, 0).text()
+                # Capitalize first letter of designation
+                designation = designation[0].upper() + designation[1:] if designation else ""
+                
                 quantite = self.options_table.cellWidget(row, 1).currentText()
                 unite = self.options_table.cellWidget(row, 2).currentText()
                 unite = None if unite == "aucune" else unite
@@ -771,13 +772,7 @@ class MainWindow(QWidget):
             self.devis_signe_check.setChecked(dossier[8] == 1)  
             self.facture_payee_check.setChecked(dossier[9] == 1) 
             
-            if dossier[4] == self.adresse_chantier_input.currentText():
-                self.adresse_facturation_input.setCurrentIndex(0)
-                self.adresse_facturation_custom_input.setVisible(False)
-            else:
-                self.adresse_facturation_input.setCurrentIndex(1)
-                self.adresse_facturation_custom_input.setText(dossier[4])
-                self.adresse_facturation_custom_input.setVisible(True)
+            self.adresse_facturation_input.setCurrentText(dossier[4])
             
             # Charger les produits associés au dossier
             produits = get_produits(dossier_id)
@@ -913,7 +908,6 @@ class MainWindow(QWidget):
         self.adresse_chantier_input.setCurrentIndex(0)
         self.libelle_travaux_input.clear()
         self.adresse_facturation_input.setCurrentIndex(0)
-        self.adresse_facturation_custom_input.clear()
         self.moyen_paiement_combo.setCurrentIndex(0)
         self.garantie_decennale_check.setChecked(False)
         self.description_input.clear()
@@ -929,10 +923,10 @@ class MainWindow(QWidget):
     
         # Ajouter les produits obligatoires
         produits_obligatoires = [
-            "Acheminement materiel",
-            "deplacement",
-            "netoyage chantier",
-            "mise en dechetterie payante"
+            "Acheminement matériel",
+            "Déplacement",
+            "Néttoyage chantier",
+            "Mise en déchetterie payante"
         ]
         for produit in produits_obligatoires:
             row_position = self.produits_table.rowCount()
@@ -982,6 +976,7 @@ class MainWindow(QWidget):
         
         # Nouvelle combobox pour la quantité
         quantity_combo = self.create_quantity_combo()
+        quantity_combo.setEditMode(True)  # Activer l'édition immédiatement
         self.produits_table.setCellWidget(row_position, 1, quantity_combo)
         
         unite_combo = NoScrollComboBox()
@@ -1044,6 +1039,10 @@ class MainWindow(QWidget):
         # Montrer le container des options quand on ajoute la première option
         self.options_container.show()
 
+        # Ajouter l'auto-focus sur la case désignation
+        self.options_table.setCurrentCell(row_position, 0)
+        self.options_table.editItem(self.options_table.item(row_position, 0))
+
     def delete_option(self, row):
         self.options_table.removeRow(row)
         for row in range(self.options_table.rowCount()):
@@ -1104,18 +1103,12 @@ class MainWindow(QWidget):
         except Exception as e:
             self.show_error_message("Erreur", f"Une erreur s'est produite : {e}")
 
-    def toggle_adresse_facturation(self, index):
-        if (index == 1):  # "Autre" selected
-            self.adresse_facturation_custom_input.setVisible(True)
-        else:  # "Identique à l'adresse chantier" selected
-            self.adresse_facturation_custom_input.setVisible(False)
-
     def enable_editing(self):
         self.is_editing = True
         self.numero_dossier_input.setReadOnly(False)
         self.adresse_chantier_input.setEnabled(True)  # Enable QComboBox in edit mode
         self.libelle_travaux_input.setReadOnly(False)
-        self.adresse_facturation_input.setEnabled(True)
+        self.adresse_facturation_input.setEnabled(True)  # Update this line
         self.moyen_paiement_combo.setEnabled(True)
         self.garantie_decennale_check.setEnabled(True)
         self.devis_signe_check.setEnabled(True)  # Enable checkbox in edit mode
@@ -1163,7 +1156,7 @@ class MainWindow(QWidget):
         self.numero_dossier_input.setReadOnly(True)
         self.adresse_chantier_input.setEnabled(False)  # Disable QComboBox in non-edit mode
         self.libelle_travaux_input.setReadOnly(True)
-        self.adresse_facturation_input.setEnabled(False)
+        self.adresse_facturation_input.setEnabled(False)  # Update this line
         self.moyen_paiement_combo.setEnabled(False)
         self.garantie_decennale_check.setEnabled(False)
         self.devis_signe_check.setEnabled(False)  # Disable checkbox in non-edit mode
@@ -1366,17 +1359,31 @@ class MainWindow(QWidget):
             item.setHidden(query not in item.text().lower())
 
     def refresh_addresses(self):
-        """Update the address combobox when addresses are modified"""
-        current_text = self.adresse_chantier_input.currentText()
+        """Update both address comboboxes when addresses are modified"""
+        # Save current selections
+        current_chantier = self.adresse_chantier_input.currentText()
+        current_facturation = self.adresse_facturation_input.currentText()
+        
+        # Clear and refill both comboboxes
         self.adresse_chantier_input.clear()
+        self.adresse_facturation_input.clear()
+        
         self.adresse_chantier_input.addItem("")
+        self.adresse_facturation_input.addItem("")
+        
         addresses = get_addresses()
         for addr in addresses:
             self.adresse_chantier_input.addItem(addr[1])
-        # Try to restore the previously selected address if it still exists
-        index = self.adresse_chantier_input.findText(current_text)
-        if index >= 0:
-            self.adresse_chantier_input.setCurrentIndex(index)
+            self.adresse_facturation_input.addItem(addr[1])
+        
+        # Restore previous selections if they still exist
+        index_chantier = self.adresse_chantier_input.findText(current_chantier)
+        if index_chantier >= 0:
+            self.adresse_chantier_input.setCurrentIndex(index_chantier)
+            
+        index_facturation = self.adresse_facturation_input.findText(current_facturation)
+        if index_facturation >= 0:
+            self.adresse_facturation_input.setCurrentIndex(index_facturation)
 
 def get_last_dossier_number():
     try:

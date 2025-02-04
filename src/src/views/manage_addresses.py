@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-    QPushButton, QLineEdit, QMessageBox, QWidget
+    QPushButton, QLineEdit, QMessageBox, QWidget, QAbstractItemView
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from src.database.database import get_addresses, get_connection
@@ -26,8 +26,15 @@ class ManageAddressesDialog(QWidget):
         self.table.setColumnCount(1)
         self.table.setHorizontalHeaderLabels(["Adresse"])
         
+        # Disable direct cell editing
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        
         # Remove row numbers
         self.table.verticalHeader().setVisible(False)
+        
+        # Enable smooth pixel-by-pixel scrolling
+        self.table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         
         # Style the header
         header = self.table.horizontalHeader()

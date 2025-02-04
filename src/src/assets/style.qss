@@ -180,6 +180,20 @@ QCheckBox::indicator:checked {
     image: url(check_mark.png);  /* Le chemin sera automatiquement ajusté */
 }
 
+/* Ajout du style pour les checkboxes désactivées */
+QCheckBox::indicator:checked:disabled {
+    border: 2px solid #bdc3c7;
+    background-color: #bdc3c7;
+    border-radius: 4px;
+    image: url(check_mark.png);
+}
+
+QCheckBox::indicator:unchecked:disabled {
+    border: 2px solid #bdc3c7;
+    background-color: #f5f6fa;
+    border-radius: 4px;
+}
+
 /* Splitter */
 QSplitter::handle {
     background-color: #e0e0e0;
