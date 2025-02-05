@@ -43,8 +43,11 @@ Si vous devez apporter des modifications au code source, vous aurrez ensuite bes
 [Installer Python 3.13.2 pour Windows](https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe)
 
 ```bash
+# Se placer dans le répertoire src/
+cd .\src\
+
 # Installation des dépendances Python
-pip install -r src/requirements.txt
+pip install -r .\requirements.txt
 ```
 
 ### Compilation
