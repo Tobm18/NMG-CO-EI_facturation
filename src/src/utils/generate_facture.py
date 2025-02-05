@@ -661,6 +661,12 @@ def generate_facture(dossier_id, invoice_type):
                 f"SOUS TOTAL AVEC OPTIONS : {format_number(sous_total_avec_options)} €",
                 f"ACOMPTE A REGLER AVEC OPTIONS : {format_number(acompte_avec_options)} €"
             ]
+        elif invoice_type == "Facture définitive":
+            paragraphs = [
+                f"SOUS TOTAL : {format_number(sous_total_avec_options)} €",
+                f"ACOMPTE VERSÉ LE : ________________",
+                f"TOTAL À RÉGLER CE JOUR : {format_number(total_a_payer_avec_options / 2)} €"
+            ]
         else:
             paragraphs = [
                 f"SOUS TOTAL : {format_number(sous_total)} €",
@@ -678,6 +684,12 @@ def generate_facture(dossier_id, invoice_type):
             paragraphs = [
                 f"SOUS TOTAL : {format_number(sous_total)} €",
                 f"ACOMPTE A REGLER : {format_number(acompte)} €"
+            ]
+        elif invoice_type == "Facture définitive":
+            paragraphs = [
+                f"SOUS TOTAL : {format_number(sous_total)} €",
+                f"ACOMPTE VERSÉ LE : ________________",
+                f"TOTAL À RdfGLER CE JOUR : {format_number(total_a_payer / 2)} €"
             ]
         else:
             paragraphs = [

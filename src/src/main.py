@@ -1267,7 +1267,7 @@ class MainWindow(QWidget):
             event.accept()
 
     def show_factures(self):
-        self.facture_view.load_factures()
+        self.facture_view.load_factures()  # Recharge les factures
         self.stacked_layout.setCurrentWidget(self.facture_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
         self.factures_button.setStyleSheet(self.get_button_style(True))
@@ -1275,7 +1275,7 @@ class MainWindow(QWidget):
         self.adresses_button.setStyleSheet(self.get_button_style(False))
 
     def show_devis(self):
-        self.devis_view.load_devis()
+        self.devis_view.load_devis()  # Recharge les devis
         self.stacked_layout.setCurrentWidget(self.devis_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
         self.factures_button.setStyleSheet(self.get_button_style(False))
@@ -1283,6 +1283,7 @@ class MainWindow(QWidget):
         self.adresses_button.setStyleSheet(self.get_button_style(False))
 
     def show_dossiers(self):
+        self.load_dossiers()  # Recharge les dossiers
         self.stacked_layout.setCurrentWidget(self.dossiers_splitter)
         self.dossiers_button.setStyleSheet(self.get_button_style(True))
         self.factures_button.setStyleSheet(self.get_button_style(False))
@@ -1290,6 +1291,7 @@ class MainWindow(QWidget):
         self.adresses_button.setStyleSheet(self.get_button_style(False))
 
     def show_addresses(self):
+        self.adresses_view.load_addresses()  # Recharge les adresses
         self.stacked_layout.setCurrentWidget(self.adresses_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
         self.factures_button.setStyleSheet(self.get_button_style(False))

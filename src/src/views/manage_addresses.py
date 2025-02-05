@@ -112,6 +112,7 @@ class ManageAddressesDialog(QWidget):
             self.table.setRowHidden(row, query.lower() not in item.text().lower())
 
     def load_addresses(self):
+        """Met à jour la table des adresses"""
         self.table.setRowCount(0)
         addresses = get_addresses()
         for address in addresses:
