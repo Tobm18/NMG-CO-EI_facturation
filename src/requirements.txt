@@ -1,7 +1,8 @@
 Flask==2.0.1
 PyQt5==5.15.9
 SQLAlchemy==1.4.22
-pandas==2.1.4
+pandas==2.2.3
 python-docx==0.8.11
 PyInstaller==6.11.1
 winshell==0.6
+pywin32
