@@ -1284,6 +1284,7 @@ class MainWindow(QWidget):
 
     def show_dossiers(self):
         self.load_dossiers()  # Recharge les dossiers
+        self.refresh_addresses()  # Recharge les adresses dans les combobox
         self.stacked_layout.setCurrentWidget(self.dossiers_splitter)
         self.dossiers_button.setStyleSheet(self.get_button_style(True))
         self.factures_button.setStyleSheet(self.get_button_style(False))
