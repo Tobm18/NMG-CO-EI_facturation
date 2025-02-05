@@ -40,38 +40,31 @@ Si vous devez apporter des modifications au code source, vous aurrez ensuite bes
 
 ### Prérequis
 
+[Installer Python 3.13.2 pour Windows](https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe)
+
 ```bash
 # Installation des dépendances Python
 pip install -r src/requirements.txt
-
-# Installer PyInstaller pour la compilation
-pip install pyinstaller
 ```
 
 ### Compilation
 
 Pour recompiler l'application et les installateurs:
 
-1. Compiler l'application principale:
-
 ```bash
-pyinstaller src/NMGFacturation.spec
+python.exe .\installer.py
 ```
 
-2. Compiler l'installateur:
+Pour recompiler le désinstallateur:
 
 ```bash
-pyinstaller src/NMGFacturationInstaller.spec
-```
-
-3. Compiler le désinstallateur:
-
-```bash
-pyinstaller src/NMGFacturationUninstaller.spec
+python.exe .\create_uninstaller.py
 ```
 
 Les fichiers compilés se trouveront dans le dossier dist/.
 
 ## Note
 
-Les modifications du code source nécessitent une recompilation complète de l'application et des installateurs.
+Les modifications du code source nécessitent une recompilation complète de l'application et des installateurs.  
+Lorsque l'app est installée avec l'installateur exécutable, celle-ci se trouve dans *C:\Program Files\NMGFacturation*  
+Le fichier de base de données se trouve à l'emplacement *C:\Users\%USER%\AppData\Local\NMGFacturation\data*
