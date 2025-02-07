@@ -406,18 +406,17 @@ class MainWindow(QWidget):
 
         self.produits_table = QTableWidget()
         self.produits_table.setColumnCount(7)
-        self.produits_table.setHorizontalHeaderLabels(["Désignation", "Quantité", "Unité", "Prix Unitaire", "Remise", "Total", ""])
+        self.produits_table.setHorizontalHeaderLabels(["Désignation", "Prix Unitaire", "Quantité", "Unité", "Remise", "Total", ""])
         self.produits_table.setEditTriggers(QTableWidget.AllEditTriggers)
         
         # Set column widths
-        self.produits_table.setColumnWidth(0, 300)  # Désignation column wider
-        self.produits_table.setColumnWidth(1, 100)  # Quantité column narrower
-        self.produits_table.setColumnWidth(2, 100)  # Unité column narrower
-        self.produits_table.setColumnWidth(3, 115)  # Prix Unitaire column narrower
-        self.produits_table.setColumnWidth(4, 100)  # Remise column narrower
-        self.produits_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
-        self.produits_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
-        self.produits_table.horizontalHeader().setStretchLastSection(True)
+        self.produits_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch) # Designation column stretches
+        self.produits_table.setColumnWidth(1, 115)  # Prix Unitaire column narrower
+        self.produits_table.setColumnWidth(2, 115)  # Quantité column narrower
+        self.produits_table.setColumnWidth(3, 115)  # Unité column narrower
+        self.produits_table.setColumnWidth(4, 115)  # Remise column narrower
+        self.produits_table.setColumnWidth(5, 115)  # Total column narrower
+        self.produits_table.setColumnWidth(6, 140)  # Delete button column width
 
         # Enable smooth scrolling
         self.produits_table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -458,20 +457,21 @@ class MainWindow(QWidget):
         
         self.options_table = QTableWidget()
         self.options_table.setColumnCount(7)
-        self.options_table.setHorizontalHeaderLabels(["Désignation", "Quantité", "Unité", "Prix Unitaire", "Remise", "Total", ""])
+        self.options_table.setHorizontalHeaderLabels(["Désignation", "Prix Unitaire", "Quantité", "Unité", "Remise", "Total", ""])
         self.options_table.setEditTriggers(QTableWidget.AllEditTriggers)
         # Ajout du défilement fluide pour le tableau des options
         self.options_table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.options_table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         
         # Configuration identique au tableau des produits
-        self.options_table.setColumnWidth(0, 300)
-        self.options_table.setColumnWidth(1, 100)
-        self.options_table.setColumnWidth(2, 100)
-        self.options_table.setColumnWidth(3, 115)
-        self.options_table.setColumnWidth(4, 100)
-        self.options_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
-        self.options_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
+        self.options_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch) # Designation column stretches
+        self.options_table.setColumnWidth(1, 115)  # Prix Unitaire column narrower
+        self.options_table.setColumnWidth(2, 115)  # Quantité column narrower
+        self.options_table.setColumnWidth(3, 115)  # Unité column narrower
+        self.options_table.setColumnWidth(4, 115)  # Remise column narrower
+        self.options_table.setColumnWidth(5, 115)  # Total column narrower
+        self.options_table.setColumnWidth(6, 140)  # Delete button column width
+
         self.options_table.setMinimumHeight(200)
         self.options_table.verticalHeader().setDefaultSectionSize(40)
         self.options_table.setAlternatingRowColors(True)
@@ -698,10 +698,10 @@ class MainWindow(QWidget):
                 # Capitalize first letter of designation
                 designation = designation[0].upper() + designation[1:] if designation else ""
                 
-                quantite = self.produits_table.cellWidget(row, 1).currentText()
-                unite = self.produits_table.cellWidget(row, 2).currentText()
+                quantite = self.produits_table.cellWidget(row, 2).currentText()
+                unite = self.produits_table.cellWidget(row, 3).currentText()
                 unite = None if unite == "aucune" else unite
-                prix = float(self.sanitize_input(self.produits_table.item(row, 3).text()))
+                prix = float(self.sanitize_input(self.produits_table.item(row, 1).text()))
                 remise = float(self.sanitize_input(self.produits_table.item(row, 4).text()))
                 if designation or quantite or prix != 0.0:
                     new_produits.append((designation, quantite, prix, remise, unite))
@@ -726,10 +726,10 @@ class MainWindow(QWidget):
                 # Capitalize first letter of designation
                 designation = designation[0].upper() + designation[1:] if designation else ""
                 
-                quantite = self.options_table.cellWidget(row, 1).currentText()
-                unite = self.options_table.cellWidget(row, 2).currentText()
+                quantite = self.options_table.cellWidget(row, 2).currentText()
+                unite = self.options_table.cellWidget(row, 3).currentText()
                 unite = None if unite == "aucune" else unite
-                prix = float(self.sanitize_input(self.options_table.item(row, 3).text()))
+                prix = float(self.sanitize_input(self.options_table.item(row, 1).text()))
                 remise = float(self.sanitize_input(self.options_table.item(row, 4).text()))
                 if designation or quantite or prix != 0.0:
                     new_options.append((designation, quantite, prix, remise, unite))
@@ -743,8 +743,20 @@ class MainWindow(QWidget):
             return False
 
     def load_dossier(self, item):
-        if self.is_editing and not self.show_unsaved_changes_warning():
-            return
+        if self.is_editing:
+            previous_item = None
+            # Trouver l'item précédemment sélectionné
+            for i in range(self.dossier_list.count()):
+                if self.dossier_list.item(i).text().startswith(f"{self.numero_dossier_input.text()} -"):
+                    previous_item = self.dossier_list.item(i)
+                    break
+                    
+            if not self.show_unsaved_changes_warning():
+                # Si l'utilisateur ne veut pas perdre ses modifications,
+                # on restaure la sélection précédente
+                self.dossier_list.setCurrentItem(previous_item)
+                return
+
         try:
             self.hide_select_message()
             dossier_text = item.text().split(" - ")
@@ -752,7 +764,6 @@ class MainWindow(QWidget):
             libelle_travaux = dossier_text[1]
             self.numero_dossier_input.setText(numero_dossier)
             self.libelle_travaux_input.setText(libelle_travaux)
-            # Charger les détails du dossier
             dossier_id = self.get_dossier_id(numero_dossier)
             self.current_dossier_id = dossier_id
             self.load_dossier_by_id(dossier_id)
@@ -774,11 +785,12 @@ class MainWindow(QWidget):
             
             self.adresse_facturation_input.setCurrentText(dossier[4])
             
-            # Charger les produits associés au dossier
+            # Modifier l'ordre des colonnes dans le tableau des produits
             produits = get_produits(dossier_id)
             self.produits_table.setRowCount(len(produits))
             for row, produit in enumerate(produits):
                 designation_item = QTableWidgetItem(produit[2])
+                prix_item = QTableWidgetItem(self.format_decimal(produit[4]))
                 
                 # Nouvelle combobox pour la quantité
                 quantity_combo = self.create_quantity_combo()
@@ -788,12 +800,18 @@ class MainWindow(QWidget):
                 else:
                     quantity_combo.setCurrentText(quantity_value)
                 
-                prix_item = QTableWidgetItem(self.format_decimal(produit[4]))
+                # Configuration de l'unité
+                unite = produit[6] if produit[6] is not None else "aucune"
+                unite_combo = NoScrollComboBox()
+                unite_combo.addItems(["aucune", "m", "m²", "m³"])
+                unite_combo.setCurrentText(unite)
+                unite_combo.setFocusPolicy(Qt.NoFocus)
+                unite_combo.setStyleSheet(self.table_combo_style)
+                
                 remise_item = QTableWidgetItem(self.format_decimal(produit[5]))
                 prix_unitaire = produit[4]
                 remise = produit[5]
                 
-                # Nouveau calcul du prix total qui vérifie si la quantité est numérique
                 try:
                     if quantity_value and quantity_value not in ["Forfait", "Ensemble"]:
                         quantite_num = float(quantity_value.replace(',', '.'))
@@ -805,26 +823,21 @@ class MainWindow(QWidget):
                 
                 total_item = QTableWidgetItem(self.format_decimal(round(prix_total, 2)))
                 total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)
+                
+                # Mise à jour de l'ordre des colonnes
                 self.produits_table.setItem(row, 0, designation_item)
-                self.produits_table.setCellWidget(row, 1, quantity_combo)
-                unite = produit[6] if produit[6] is not None else "aucune"
-                unite_combo = NoScrollComboBox()
-                unite_combo.addItems(["aucune", "m", "m²", "m³"])
-                unite_combo.setCurrentText(unite)
-                unite_combo.setFocusPolicy(Qt.NoFocus)
-                unite_combo.setStyleSheet(self.table_combo_style)
-                self.produits_table.setCellWidget(row, 2, unite_combo)
-                self.produits_table.setItem(row, 3, prix_item)
+                self.produits_table.setItem(row, 1, prix_item)
+                self.produits_table.setCellWidget(row, 2, quantity_combo)
+                self.produits_table.setCellWidget(row, 3, unite_combo)
                 self.produits_table.setItem(row, 4, remise_item)
                 self.produits_table.setItem(row, 5, total_item)
                 
-                # Ajouter le bouton de suppression
                 delete_button = QPushButton("Supprimer")
                 delete_button.setStyleSheet(self.table_button_style)
                 delete_button.clicked.connect(lambda _, r=row: self.delete_product(r))
                 self.produits_table.setCellWidget(row, 6, delete_button)
-                
-            # Charger les options
+            
+            # Même logique pour les options
             options = get_options(dossier_id)
             
             # Afficher ou cacher le container des options selon s'il y en a ou non
@@ -835,17 +848,23 @@ class MainWindow(QWidget):
                 for row, option in enumerate(options):
                     # Même logique que pour les produits
                     designation_item = QTableWidgetItem(option[2])
+                    prix_item = QTableWidgetItem(self.format_decimal(option[4]))
                     
-                    # Nouvelle combobox pour la quantité
                     quantity_combo = self.create_quantity_combo()
-                    quantity_combo.setEditMode(self.is_editing)  # Ajoutez cette ligne
+                    quantity_combo.setEditMode(self.is_editing)
                     quantity_value = str(option[3]) if option[3] is not None else ""
                     if quantity_value in self.quantity_options:
                         quantity_combo.setCurrentText(quantity_value)
                     else:
                         quantity_combo.setCurrentText(quantity_value)
                     
-                    prix_item = QTableWidgetItem(self.format_decimal(option[4]))
+                    unite = option[6] if option[6] is not None else "aucune"
+                    unite_combo = NoScrollComboBox()
+                    unite_combo.addItems(["aucune", "m", "m²", "m³"])
+                    unite_combo.setCurrentText(unite)
+                    unite_combo.setFocusPolicy(Qt.NoFocus)
+                    unite_combo.setStyleSheet(self.table_combo_style)
+                    
                     remise_item = QTableWidgetItem(self.format_decimal(option[5]))
                     prix_unitaire = option[4]
                     remise = option[5]
@@ -863,16 +882,11 @@ class MainWindow(QWidget):
                     total_item = QTableWidgetItem(self.format_decimal(round(prix_total, 2)))
                     total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)
                     
+                    # Mise à jour de l'ordre des colonnes
                     self.options_table.setItem(row, 0, designation_item)
-                    self.options_table.setCellWidget(row, 1, quantity_combo)
-                    unite = option[6] if option[6] is not None else "aucune"
-                    unite_combo = NoScrollComboBox()
-                    unite_combo.addItems(["aucune", "m", "m²", "m³"])
-                    unite_combo.setCurrentText(unite)
-                    unite_combo.setFocusPolicy(Qt.NoFocus)
-                    unite_combo.setStyleSheet(self.table_combo_style)
-                    self.options_table.setCellWidget(row, 2, unite_combo)
-                    self.options_table.setItem(row, 3, prix_item)
+                    self.options_table.setItem(row, 1, prix_item)
+                    self.options_table.setCellWidget(row, 2, quantity_combo)
+                    self.options_table.setCellWidget(row, 3, unite_combo)
                     self.options_table.setItem(row, 4, remise_item)
                     self.options_table.setItem(row, 5, total_item)
                     
@@ -935,14 +949,14 @@ class MainWindow(QWidget):
             
             # Nouvelle combobox pour la quantité
             quantity_combo = self.create_quantity_combo()
-            self.produits_table.setCellWidget(row_position, 1, quantity_combo)
+            self.produits_table.setCellWidget(row_position, 2, quantity_combo)
             
             unite_combo = NoScrollComboBox()
             unite_combo.addItems(["aucune", "m", "m²", "m³"])
             unite_combo.setFocusPolicy(Qt.NoFocus)
             unite_combo.setStyleSheet(self.table_combo_style)
-            self.produits_table.setCellWidget(row_position, 2, unite_combo)
-            self.produits_table.setItem(row_position, 3, QTableWidgetItem("0,0"))
+            self.produits_table.setCellWidget(row_position, 3, unite_combo)
+            self.produits_table.setItem(row_position, 1, QTableWidgetItem("0,0"))
             self.produits_table.setItem(row_position, 4, QTableWidgetItem("0,0"))
             prix_total_item = QTableWidgetItem("0,0")
             prix_total_item.setFlags(prix_total_item.flags() & ~Qt.ItemIsEditable)
@@ -977,15 +991,15 @@ class MainWindow(QWidget):
         # Nouvelle combobox pour la quantité
         quantity_combo = self.create_quantity_combo()
         quantity_combo.setEditMode(True)  # Activer l'édition immédiatement
-        self.produits_table.setCellWidget(row_position, 1, quantity_combo)
+        self.produits_table.setCellWidget(row_position, 2, quantity_combo)
         
         unite_combo = NoScrollComboBox()
         unite_combo.addItems(["aucune", "m", "m²", "m³"])
         unite_combo.setFocusPolicy(Qt.NoFocus)
         unite_combo.setStyleSheet(self.table_combo_style)
-        self.produits_table.setCellWidget(row_position, 2, unite_combo)
+        self.produits_table.setCellWidget(row_position, 3, unite_combo)
         
-        self.produits_table.setItem(row_position, 3, QTableWidgetItem("0,0"))
+        self.produits_table.setItem(row_position, 1, QTableWidgetItem("0,0"))
         self.produits_table.setItem(row_position, 4, QTableWidgetItem("0,0"))
         prix_total_item = QTableWidgetItem("0,0")
         prix_total_item.setFlags(prix_total_item.flags() & ~Qt.ItemIsEditable)
@@ -1017,15 +1031,15 @@ class MainWindow(QWidget):
         # Nouvelle combobox pour la quantité
         quantity_combo = self.create_quantity_combo()
         quantity_combo.setEditMode(self.is_editing)  # Ajoutez cette ligne
-        self.options_table.setCellWidget(row_position, 1, quantity_combo)
+        self.options_table.setCellWidget(row_position, 2, quantity_combo)
         
         unite_combo = NoScrollComboBox()
         unite_combo.addItems(["aucune", "m", "m²", "m³"])
         unite_combo.setFocusPolicy(Qt.NoFocus)
         unite_combo.setStyleSheet(self.table_combo_style)
-        self.options_table.setCellWidget(row_position, 2, unite_combo)
+        self.options_table.setCellWidget(row_position, 3, unite_combo)
         
-        self.options_table.setItem(row_position, 3, QTableWidgetItem("0,0"))
+        self.options_table.setItem(row_position, 1, QTableWidgetItem("0,0"))
         self.options_table.setItem(row_position, 4, QTableWidgetItem("0,0"))
         prix_total_item = QTableWidgetItem("0,0")
         prix_total_item.setFlags(prix_total_item.flags() & ~Qt.ItemIsEditable)
@@ -1133,10 +1147,10 @@ class MainWindow(QWidget):
             delete_button = self.produits_table.cellWidget(row, 6)
             if delete_button:
                 delete_button.setEnabled(True)
-            unite_combo = self.produits_table.cellWidget(row, 2)
+            unite_combo = self.produits_table.cellWidget(row, 3)
             if unite_combo:
                 unite_combo.setEnabled(True)
-            quantity_combo = self.produits_table.cellWidget(row, 1)
+            quantity_combo = self.produits_table.cellWidget(row, 2)
             if quantity_combo:
                 quantity_combo.setEditMode(True)
                 
@@ -1144,10 +1158,10 @@ class MainWindow(QWidget):
             delete_button = self.options_table.cellWidget(row, 6)
             if delete_button:
                 delete_button.setEnabled(True)
-            unite_combo = self.options_table.cellWidget(row, 2)
+            unite_combo = self.options_table.cellWidget(row, 3)
             if unite_combo:
                 unite_combo.setEnabled(True)
-            quantity_combo = self.options_table.cellWidget(row, 1)
+            quantity_combo = self.options_table.cellWidget(row, 2)
             if quantity_combo:
                 quantity_combo.setEditMode(True)
 
@@ -1181,10 +1195,10 @@ class MainWindow(QWidget):
             delete_button = self.produits_table.cellWidget(row, 6)
             if delete_button:
                 delete_button.setEnabled(False)
-            unite_combo = self.produits_table.cellWidget(row, 2)
+            unite_combo = self.produits_table.cellWidget(row, 3)
             if unite_combo:
                 unite_combo.setEnabled(False)
-            quantity_combo = self.produits_table.cellWidget(row, 1)
+            quantity_combo = self.produits_table.cellWidget(row, 2)
             if quantity_combo:
                 quantity_combo.setEditMode(False)
                 
@@ -1192,10 +1206,10 @@ class MainWindow(QWidget):
             delete_button = self.options_table.cellWidget(row, 6)
             if delete_button:
                 delete_button.setEnabled(False)
-            unite_combo = self.options_table.cellWidget(row, 2)
+            unite_combo = self.options_table.cellWidget(row, 3)
             if unite_combo:
                 unite_combo.setEnabled(False)
-            quantity_combo = self.options_table.cellWidget(row, 1)
+            quantity_combo = self.options_table.cellWidget(row, 2)
             if quantity_combo:
                 quantity_combo.setEditMode(False)
 
@@ -1267,6 +1281,9 @@ class MainWindow(QWidget):
             event.accept()
 
     def show_factures(self):
+        if self.is_editing and not self.show_unsaved_changes_warning():
+            return
+        # Continuer vers la nouvelle vue
         self.facture_view.load_factures()  # Recharge les factures
         self.stacked_layout.setCurrentWidget(self.facture_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
@@ -1275,6 +1292,9 @@ class MainWindow(QWidget):
         self.adresses_button.setStyleSheet(self.get_button_style(False))
 
     def show_devis(self):
+        if self.is_editing and not self.show_unsaved_changes_warning():
+            return
+        # Continuer vers la nouvelle vue
         self.devis_view.load_devis()  # Recharge les devis
         self.stacked_layout.setCurrentWidget(self.devis_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
@@ -1283,6 +1303,9 @@ class MainWindow(QWidget):
         self.adresses_button.setStyleSheet(self.get_button_style(False))
 
     def show_dossiers(self):
+        if self.is_editing and not self.show_unsaved_changes_warning():
+            return
+        # Continuer vers la nouvelle vue
         self.load_dossiers()  # Recharge les dossiers
         self.refresh_addresses()  # Recharge les adresses dans les combobox
         self.stacked_layout.setCurrentWidget(self.dossiers_splitter)
@@ -1292,6 +1315,9 @@ class MainWindow(QWidget):
         self.adresses_button.setStyleSheet(self.get_button_style(False))
 
     def show_addresses(self):
+        if self.is_editing and not self.show_unsaved_changes_warning():
+            return
+        # Continuer vers la nouvelle vue
         self.adresses_view.load_addresses()  # Recharge les adresses
         self.stacked_layout.setCurrentWidget(self.adresses_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))

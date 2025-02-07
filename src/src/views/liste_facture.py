@@ -60,8 +60,8 @@ class ListeFacture(QWidget):
         layout.addLayout(search_layout)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["Numéro Dossier", "Adresse Chantier", "Libellé Travaux", "Statut", "Télécharger"])
+        self.table.setColumnCount(6)  # Changed from 5 to 6
+        self.table.setHorizontalHeaderLabels(["Numéro Dossier", "Adresse Chantier", "Adresse Facturation", "Libellé Travaux", "Statut", "Télécharger"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
@@ -98,8 +98,14 @@ class ListeFacture(QWidget):
         dossiers = get_dossiers()
         self.table.setRowCount(len(dossiers))
         for row, dossier in enumerate(dossiers):
-            # Colonnes 1, 2, 3 correspondent aux indices 1, 2, 3 dans le tuple dossier
-            for col, index in enumerate([1, 2, 3]):  # numero_dossier, adresse_chantier, libelle_travaux
+            columns = [
+                (1, "numero_dossier"),
+                (2, "adresse_chantier"),
+                (4, "adresse_facturation"),  # Index corrigé de 7 à 4
+                (3, "libelle_travaux")
+            ]
+            
+            for col, (index, _) in enumerate(columns):
                 item = QTableWidgetItem(str(dossier[index]))
                 item.setFlags(Qt.ItemIsEnabled)
                 if row % 2 == 0:
@@ -107,19 +113,23 @@ class ListeFacture(QWidget):
                 else:
                     item.setBackground(QColor("#e0e0e0"))
                 self.table.setItem(row, col, item)
-            facture_payee = dossier[9]  # Index corrigé pour facture_payee
+
+            # Statut de paiement
+            facture_payee = dossier[9]
             item_payee = QTableWidgetItem("Payé" if facture_payee == 1 else "Non payé")
             item_payee.setForeground(QBrush(QColor("green") if facture_payee == 1 else QColor("red")))
             item_payee.setFlags(Qt.ItemIsEnabled)
-            item_payee.setTextAlignment(Qt.AlignCenter)  # Center align the text
+            item_payee.setTextAlignment(Qt.AlignCenter)
             if row % 2 == 0:
                 item_payee.setBackground(QColor("#f9f9f9"))
             else:
                 item_payee.setBackground(QColor("#e0e0e0"))
-            self.table.setItem(row, 3, item_payee)
+            self.table.setItem(row, 4, item_payee)  # Index 4 pour le statut
+
+            # Bouton de téléchargement
             download_button = QPushButton("Télécharger la facture")
             download_button.clicked.connect(lambda _, d_id=dossier[0]: self.show_invoice_type_dialog(d_id))
-            self.table.setCellWidget(row, 4, download_button)
+            self.table.setCellWidget(row, 5, download_button)  # Index 5 pour le bouton
 
     def filter_table(self):
         search_text = self.search_input.text().lower()

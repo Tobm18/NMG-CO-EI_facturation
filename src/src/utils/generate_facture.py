@@ -302,7 +302,7 @@ def add_produits_table(document, produits, dossier_id):
 
     # Table header
     hdr_cells = table.rows[0].cells
-    headers = ['DÉSIGNATION', 'QUANTITÉ', 'PRIX UNITAIRE', 'TOTAL']
+    headers = ['DÉSIGNATION', 'PRIX UNITAIRE', 'QUANTITÉ', 'TOTAL']
     if show_remise_column:
         headers.insert(3, 'REMISE')
 
@@ -322,9 +322,9 @@ def add_produits_table(document, produits, dossier_id):
     
     for produit in produits:
         row_cells = table.add_row().cells
-        row_cells[0].text = produit[2]
-        row_cells[1].text = f'{format_number(produit[3])}' if produit[6] is None else f'{format_number(produit[3])} {produit[6]}'
-        row_cells[2].text = f'{format_number(produit[4])} €'
+        row_cells[0].text = produit[2]  # Designation
+        row_cells[1].text = f'{format_number(produit[4])} €'  # Prix Unitaire
+        row_cells[2].text = f'{format_number(produit[3])}' if produit[6] is None else f'{format_number(produit[3])} {produit[6]}'  # Quantité
         
         # Calculer d'abord le total sans remise
         try:
@@ -342,10 +342,10 @@ def add_produits_table(document, produits, dossier_id):
 
         # Affichage dans le tableau
         if show_remise_column:
-            row_cells[3].text = f'{format_number(produit[5])} €'
-            row_cells[4].text = f'{format_number(total_avec_remise)} €'
+            row_cells[3].text = f'{format_number(produit[5])} €'  # Remise
+            row_cells[4].text = f'{format_number(total_avec_remise)} €'  # Total
         else:
-            row_cells[3].text = f'{format_number(total_avec_remise)} €'
+            row_cells[3].text = f'{format_number(total_avec_remise)} €'  # Total
 
         for cell in row_cells:
             cell.paragraphs[0].style.font.name = "Arial"
@@ -373,8 +373,8 @@ def add_produits_table(document, produits, dossier_id):
             option_cell.vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
                         
             # Autres cellules
-            row_cells[1].text = f'{format_number(option[3])}' if option[6] is None else f'{format_number(option[3])} {option[6]}'
-            row_cells[2].text = f'{format_number(option[4])} €'
+            row_cells[1].text = f'{format_number(option[4])} €'
+            row_cells[2].text = f'{format_number(option[3])}' if option[6] is None else f'{format_number(option[3])} {option[6]}'
             if show_remise_column:
                 row_cells[3].text = f'{format_number(option[5])} €'
                 try:
@@ -514,25 +514,11 @@ def add_footer_to_last_page(document, invoice_type):
         # Premier paragraphe
         paragraph1 = document.add_paragraph()
         paragraph1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        text = "Cette "
-        text_facture = "facture"
-        text_rest = f" est payable à sa date d'émission soit au plus tard le {datetime.now().strftime('%d/%m/%Y')}. En cas de retard de paiement,\nune pénalité fixée à 15% du montant net de la facture, par mois de retard entamé, est exigible sans rappel le jour suivant la date\nlimite de règlement. Aucun escompte pour paiement anticipé."
-
-        run1 = paragraph1.add_run(text)
+        paragraph1.text = f"Cette facture est payable à sa date d'émission soit au plus tard le {datetime.now().strftime('%d/%m/%Y')}. En cas de retard de paiement,\nune pénalité fixée à 15% du montant net de la facture, par mois de retard entamé, est exigible sans rappel le jour suivant la date\nlimite de règlement. Aucun escompte pour paiement anticipé."
+        run1 = paragraph1.runs[0]
         run1.font.name = "Arial"
         run1.font.size = Pt(8)
         run1.font.color.rgb = colorGreyText
-
-        run2 = paragraph1.add_run(text_facture)
-        run2.font.name = "Arial"
-        run2.font.size = Pt(8)
-        run2.font.color.rgb = colorRed  # Rouge
-
-        run3 = paragraph1.add_run(text_rest)
-        run3.font.name = "Arial"
-        run3.font.size = Pt(8)
-        run3.font.color.rgb = colorGreyText
 
     # Deuxième paragraphe
     paragraph2 = document.add_paragraph()

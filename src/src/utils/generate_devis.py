@@ -297,7 +297,7 @@ def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id co
 
     # Table header
     hdr_cells = table.rows[0].cells
-    headers = ['DÉSIGNATION', 'QUANTITÉ', 'PRIX UNITAIRE', 'TOTAL']
+    headers = ['DÉSIGNATION', 'PRIX UNITAIRE', 'QUANTITÉ', 'TOTAL']
     if show_remise_column:
         headers.insert(3, 'REMISE')
 
@@ -317,9 +317,9 @@ def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id co
     
     for produit in produits:
         row_cells = table.add_row().cells
-        row_cells[0].text = produit[2]
-        row_cells[1].text = f'{format_number(produit[3])}' if produit[6] is None else f'{format_number(produit[3])} {produit[6]}'
-        row_cells[2].text = f'{format_number(produit[4])} €'
+        row_cells[0].text = produit[2]  # Designation
+        row_cells[1].text = f'{format_number(produit[4])} €'  # Prix Unitaire
+        row_cells[2].text = f'{format_number(produit[3])}' if produit[6] is None else f'{format_number(produit[3])} {produit[6]}'  # Quantité
         
         # Calculer d'abord le total sans remise
         try:
@@ -335,12 +335,11 @@ def add_produits_table(document, produits, dossier_id):  # Ajouter dossier_id co
         total_produits_sans_remise += total_sans_remise
         total_produits_avec_remise += total_avec_remise
 
-        # Affichage dans le tableau
         if show_remise_column:
-            row_cells[3].text = f'{format_number(produit[5])} €'
-            row_cells[4].text = f'{format_number(total_avec_remise)} €'
+            row_cells[3].text = f'{format_number(produit[5])} €'  # Remise
+            row_cells[4].text = f'{format_number(total_avec_remise)} €'  # Total
         else:
-            row_cells[3].text = f'{format_number(total_avec_remise)} €'
+            row_cells[3].text = f'{format_number(total_avec_remise)} €'  # Total
 
         for cell in row_cells:
             cell.paragraphs[0].style.font.name = "Arial"
@@ -496,24 +495,11 @@ def add_footer_to_last_page(document):
     paragraph1 = document.add_paragraph()
     paragraph1.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    text = "Ce présent "
-    text_devis = "devis"
-    text_rest = " est valable pendant 1 mois à compter de la date d'émission, si acceptation après, le montant sera révisé.\nPour le valider, renvoyez-le à l'adresse suivante avec la mention\n« BON POUR ACCORD » suivi de votre signature"
-
-    run1 = paragraph1.add_run(text)
+    paragraph1.text = "Ce présent devis est valable pendant 1 mois à compter de la date d'émission, si acceptation après, le montant sera révisé.\nPour le valider, renvoyez-le à l'adresse suivante avec la mention\n« BON POUR ACCORD » suivi de votre signature"
+    run1 = paragraph1.runs[0]
     run1.font.name = "Arial"
     run1.font.size = Pt(8)
     run1.font.color.rgb = colorGreyText
-
-    run2 = paragraph1.add_run(text_devis)
-    run2.font.name = "Arial"
-    run2.font.size = Pt(8)
-    run2.font.color.rgb = colorRed  # Rouge
-
-    run3 = paragraph1.add_run(text_rest)
-    run3.font.name = "Arial"
-    run3.font.size = Pt(8)
-    run3.font.color.rgb = colorGreyText
 
     # Deuxième paragraphe
     paragraph2 = document.add_paragraph()
