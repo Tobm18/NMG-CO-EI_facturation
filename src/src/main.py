@@ -609,8 +609,22 @@ class MainWindow(QWidget):
     def load_dossiers(self):
         self.dossier_list.clear()
         dossiers = get_dossiers()
+        
+        # Convert dossiers to a list of tuples with parsed year and number
+        sorted_dossiers = []
         for dossier in dossiers:
+            numero = dossier[1]
+            if '/' in numero:
+                year, num = numero.split('/')
+                sorted_dossiers.append((int(year), int(num), dossier))
+        
+        # Sort by year (descending) then by number (descending)
+        sorted_dossiers.sort(key=lambda x: (-x[0], -x[1]))
+        
+        # Add sorted items to list
+        for _, _, dossier in sorted_dossiers:
             self.dossier_list.addItem(f"{dossier[1]} - {dossier[3]}")
+        
         self.show_select_message()
 
     def show_error_message(self, title, message):
@@ -1418,17 +1432,23 @@ def get_last_dossier_number():
     try:
         dossiers = get_dossiers()
         current_year = datetime.datetime.now().year
-        year_dossiers = []
+        year_numbers = []
         
         for dossier in dossiers:
-            numero = dossier[1]  # Récupère le numéro de dossier
+            numero = dossier[1]  # Get dossier number
             if '/' in numero:
                 year, num = numero.split('/')
                 if int(year) == current_year:
-                    year_dossiers.append(int(num))
+                    year_numbers.append(int(num))
         
-        if year_dossiers:
-            return max(year_dossiers)
+        # Sort numbers to find gaps
+        year_numbers.sort()
+        
+        # Find first gap in sequence
+        for i in range(1, max(year_numbers) + 2 if year_numbers else 2):
+            if i not in year_numbers:
+                return i - 1  # Return number before gap
+                
         return 0
     except:
         return 0
