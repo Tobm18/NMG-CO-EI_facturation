@@ -13,9 +13,9 @@ from PyQt5.QtWidgets import (
     QFormLayout, QLineEdit, QPushButton, QMessageBox, QTableWidget,
     QTableWidgetItem, QLabel, QStackedLayout, QHeaderView, QSplitter,
     QComboBox, QCheckBox, QScrollArea, QTextEdit, QMenu, QDialog,
-    QDialogButtonBox, QSizePolicy, QAbstractItemView
+    QDialogButtonBox, QSizePolicy, QAbstractItemView, QFileDialog
 )
-from PyQt5.QtCore import Qt, pyqtSlot
+from PyQt5.QtCore import Qt, pyqtSlot, QSize
 from PyQt5.QtGui import QFont, QIcon, QPalette, QColor
 
 from src.database.database import (
@@ -73,11 +73,11 @@ def get_resource_path(relative_path):
         if getattr(sys, 'frozen', False):
             # Si l'application est compilée (dans un exe)
             base_path = sys._MEIPASS
+            return os.path.join(base_path, 'assets', relative_path)
         else:
             # Si l'application est en développement
-            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        
-        return os.path.join(base_path, 'assets', relative_path)
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            return os.path.join(base_path, 'src', 'assets', relative_path)
     except Exception as e:
         print(f"Erreur lors de la récupération du chemin de la ressource : {e}")
         return None
@@ -165,13 +165,14 @@ class DatabaseWarningDialog(QDialog):
 
 def initialize_database():
     """Initialise ou vérifie la base de données"""
-    db_path = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation', 'facturation.db')
+    db_path = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation', 'data', 'facturation.db')
+    db_dir = os.path.dirname(db_path)
     
     if not os.path.exists(db_path) or not verify_database():
         dialog = DatabaseWarningDialog()
         if dialog.exec_() == QDialog.Accepted:
             try:
-                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                os.makedirs(db_dir, exist_ok=True)
                 from src.database.databaseinit import init_database
                 init_database()
                 QMessageBox.information(None, "Succès", "Base de données créée avec succès.")
@@ -182,6 +183,122 @@ def initialize_database():
         else:
             return False
     return True
+
+class BackupDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Sauvegarde/Restauration")
+        self.setFixedWidth(400)
+        
+        layout = QVBoxLayout()
+        
+        # Bouton de sauvegarde
+        self.backup_btn = QPushButton("Sauvegarder l'application")
+        self.backup_btn.clicked.connect(self.backup)
+        self.backup_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2ecc71;
+                color: white;
+                padding: 15px;
+                border: none;
+                border-radius: 4px;
+                margin: 5px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #27ae60;
+            }
+        """)
+        
+        # Bouton de restauration
+        self.restore_btn = QPushButton("Restaurer une sauvegarde")
+        self.restore_btn.clicked.connect(self.restore)
+        self.restore_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                padding: 15px;
+                border: none;
+                border-radius: 4px;
+                margin: 5px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+        """)
+        
+        layout.addWidget(self.backup_btn)
+        layout.addWidget(self.restore_btn)
+        self.setLayout(layout)
+
+    def backup(self):
+        try:
+            # Obtenir le chemin de la base de données source
+            db_path = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation', 'data', 'facturation.db')
+            if not os.path.exists(db_path):
+                QMessageBox.warning(self, "Erreur", "Base de données introuvable")
+                return
+
+            # Générer le nom du fichier avec la date et l'heure actuelles
+            current_time = datetime.datetime.now()
+            backup_filename = f"Sauvegarde_{current_time.strftime('%d-%m-%Y_%Hh%M')}.db"
+
+            # Demander à l'utilisateur où sauvegarder le fichier
+            default_path = os.path.join(os.path.expanduser("~/Desktop"), backup_filename)
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Sauvegarder la base de données",
+                default_path,
+                "Database Files (*.db)"
+            )
+            
+            if file_path:
+                # Copier le fichier
+                import shutil
+                shutil.copy2(db_path, file_path)
+                QMessageBox.information(self, "Succès", "Sauvegarde effectuée avec succès")
+                self.accept()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la sauvegarde : {str(e)}")
+
+    def restore(self):
+        try:
+            # Demander à l'utilisateur de sélectionner le fichier de sauvegarde
+            file_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Sélectionner une sauvegarde",
+                os.path.expanduser("~/Desktop"),
+                "Database Files (*.db)"
+            )
+            
+            if file_path:
+                # Confirmer la restauration
+                reply = QMessageBox.question(
+                    self,
+                    'Confirmation',
+                    'La restauration remplacera la base de données actuelle. Continuer ?',
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                
+                if reply == QMessageBox.Yes:
+                    # Chemin de la base de données de l'application
+                    db_path = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation', 'data', 'facturation.db')
+                    db_dir = os.path.dirname(db_path)
+                    os.makedirs(db_dir, exist_ok=True)
+                    
+                    # Copier le fichier
+                    import shutil
+                    shutil.copy2(file_path, db_path)
+                    
+                    QMessageBox.information(self, "Succès", "Restauration effectuée avec succès.\nVeuillez redémarrer l'application.")
+                    self.accept()
+                    # Fermer l'application
+                    QApplication.quit()
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la restauration : {str(e)}")
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -204,10 +321,55 @@ class MainWindow(QWidget):
 
         # Bandeau en haut de la page
         bandeau_layout = QHBoxLayout()
-        self.bandeau_label = QLabel("Gestionnaire de facturation")
-        self.bandeau_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.bandeau_label.setStyleSheet("color: white; padding: 10px;")
+        bandeau_layout.setSpacing(0)
+        bandeau_layout.setContentsMargins(10, 0, 0, 0)  # Marge gauche de 10px
         
+        # Bouton de sauvegarde avec l'icône
+        self.save_button_bandeau = QPushButton("  Sauvegarde")
+        self.save_button_bandeau.setFixedWidth(130)  # Augmenter la largeur pour accommoder le texte
+        save_icon_path = get_resource_path(os.path.join('Img', 'save.png'))
+        if os.path.exists(save_icon_path):
+            icon = QIcon(save_icon_path)
+            if not icon.isNull():
+                self.save_button_bandeau.setIcon(icon)
+                self.save_button_bandeau.setIconSize(QSize(20, 20))
+            else:
+                print(f"L'icône n'a pas pu être chargée : {save_icon_path}")
+        else:
+            print(f"Fichier d'icône non trouvé : {save_icon_path}")
+            
+        self.save_button_bandeau.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+                margin: 0px;
+                min-width: 130px;
+                max-width: 130px;
+                min-height: 50px;
+                max-height: 50px;
+                color: white;
+                font-size: 14px;
+                text-align: left;
+                padding-left: 15px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                border-radius: 0px;
+            }
+            QPushButton:pressed {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+        """)
+
+        # Modifier la connexion du bouton de sauvegarde
+        self.save_button_bandeau.clicked.connect(self.show_backup_dialog)
+
+        # Ajouter un widget pour créer un espace flexible
+        bandeau_layout.addWidget(self.save_button_bandeau)
+        bandeau_layout.addStretch(1)  # Ajouter un espace flexible
+        
+        # Ajouter les autres boutons
         self.dossiers_button = QPushButton("Liste des Dossiers")
         self.dossiers_button.setStyleSheet(self.get_button_style(True))
         self.dossiers_button.clicked.connect(self.show_dossiers)
@@ -224,7 +386,6 @@ class MainWindow(QWidget):
         self.adresses_button.setStyleSheet(self.get_button_style(False))
         self.adresses_button.clicked.connect(self.show_addresses)
 
-        bandeau_layout.addWidget(self.bandeau_label)
         bandeau_layout.addWidget(self.dossiers_button)
         bandeau_layout.addWidget(self.factures_button)
         bandeau_layout.addWidget(self.devis_button)
@@ -1427,6 +1588,10 @@ class MainWindow(QWidget):
         index_facturation = self.adresse_facturation_input.findText(current_facturation)
         if index_facturation >= 0:
             self.adresse_facturation_input.setCurrentIndex(index_facturation)
+
+    def show_backup_dialog(self):
+        dialog = BackupDialog(self)
+        dialog.exec_()
 
 def get_last_dossier_number():
     try:
