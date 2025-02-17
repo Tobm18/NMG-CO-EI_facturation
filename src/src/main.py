@@ -1443,6 +1443,9 @@ class MainWindow(QWidget):
         no_button = msg_box.button(QMessageBox.No)
         no_button.setText("Non")
         reply = msg_box.exec_()
+        if reply == QMessageBox.Yes:
+            self.is_editing = False
+            return True
         return reply == QMessageBox.Yes
 
     def closeEvent(self, event):
@@ -1458,8 +1461,7 @@ class MainWindow(QWidget):
     def show_factures(self):
         if self.is_editing and not self.show_unsaved_changes_warning():
             return
-        # Continuer vers la nouvelle vue
-        self.facture_view.load_factures()  # Recharge les factures
+        self.facture_view.load_factures()
         self.stacked_layout.setCurrentWidget(self.facture_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
         self.factures_button.setStyleSheet(self.get_button_style(True))
@@ -1469,8 +1471,7 @@ class MainWindow(QWidget):
     def show_devis(self):
         if self.is_editing and not self.show_unsaved_changes_warning():
             return
-        # Continuer vers la nouvelle vue
-        self.devis_view.load_devis()  # Recharge les devis
+        self.devis_view.load_devis()
         self.stacked_layout.setCurrentWidget(self.devis_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
         self.factures_button.setStyleSheet(self.get_button_style(False))
@@ -1480,9 +1481,8 @@ class MainWindow(QWidget):
     def show_dossiers(self):
         if self.is_editing and not self.show_unsaved_changes_warning():
             return
-        # Continuer vers la nouvelle vue
-        self.load_dossiers()  # Recharge les dossiers
-        self.refresh_addresses()  # Recharge les adresses dans les combobox
+        self.load_dossiers()
+        self.refresh_addresses()
         self.stacked_layout.setCurrentWidget(self.dossiers_splitter)
         self.dossiers_button.setStyleSheet(self.get_button_style(True))
         self.factures_button.setStyleSheet(self.get_button_style(False))
@@ -1492,8 +1492,7 @@ class MainWindow(QWidget):
     def show_addresses(self):
         if self.is_editing and not self.show_unsaved_changes_warning():
             return
-        # Continuer vers la nouvelle vue
-        self.adresses_view.load_addresses()  # Recharge les adresses
+        self.adresses_view.load_addresses()
         self.stacked_layout.setCurrentWidget(self.adresses_view)
         self.dossiers_button.setStyleSheet(self.get_button_style(False))
         self.factures_button.setStyleSheet(self.get_button_style(False))
@@ -1590,6 +1589,16 @@ class MainWindow(QWidget):
             self.adresse_facturation_input.setCurrentIndex(index_facturation)
 
     def show_backup_dialog(self):
+        if self.is_editing:
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setWindowTitle('Modifications non enregistrées')
+            msg_box.setText("Vous devez d'abord enregistrer les modifications avant d'effectuer une sauvegarde")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            ok_button = msg_box.button(QMessageBox.Ok)
+            ok_button.setText("OK")
+            msg_box.exec_()
+            return
         dialog = BackupDialog(self)
         dialog.exec_()
 
