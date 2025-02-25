@@ -10,28 +10,32 @@ Application de facturation développée pour NMG&CO-EI.
 
 ```
 src/ 
-├──src/
-│  ├── assets/                         
-│  │   ├── Img/                      # Images et icônes 
-│  │   └── style.qss                 # Feuilles de style Qt 
-│  ├── database/                        
-│  │   ├── database.py               # Classes et méthodes BDD 
-│  │   └── databaseinit.py           # Initialisation BDD 
-│  ├── utils/                            
-│  │   ├── generate_devis.py         # Génération PDF devis 
-│  │   └── generate_facture.py       # Génération PDF factures 
-│  ├── views/                           
-│  │   ├── liste_devis.py            # Interface gestion devis 
-│  │   └── liste_facture.py          # Interface gestion factures 
-│  └── main.py                       # Point d'entrée de l'application 
-├── NMGFacturation.spec              # Configuration compilation de l'app 
-├── NMGFacturationInstaller.spec     # Configuration compilation de l'installateur
-├── NMGFacturationUninstaller.spec   # Configuration compilation du désinstallateur 
-├── create_uninstaller.py            # Script de création du désinstallateur 
-├── installer.py                     # Script de création de l'installateur 
-├── setup.py                         # Script d'installation 
-├── uninstaller.py                   # Script de désinstallation 
-└── requirements.txt                 # Dépendances Python
+├── builders/                        # Scripts de compilation 
+│   ├── build_app.py                 # Compilation de l'application 
+│   ├── build_installer.py           # Compilation de l'installateur 
+│   ├── build_uninstaller.py         # Compilation du désinstallateur 
+│   └── build_updater.py             # Compilation de l'utilitaire de mise à jours 
+├── src/
+│   ├── assets/
+│   │   ├── Img/                     # Images et icônes 
+│   │   └── style.qss                # Feuilles de style Qt 
+│   ├── database/
+│   │   ├── database.py              # Classes et méthodes BDD 
+│   │   └── databaseinit.py          # Initialisation BDD 
+│   ├── utils/
+│   │   ├── generate_devis.py        # Génération PDF devis 
+│   │   └── generate_facture.py      # Génération PDF factures 
+│   ├── views/
+│   │   ├── liste_devis.py           # Interface gestion devis 
+│   │   ├── liste_facture.py         # Interface gestion factures 
+│   │   └── manage_addresses.py      # Interface gestion adresses 
+│   ├── version.py                   # Version de l'application 
+│   └── main.py                      # Point d'entrée de l'application 
+├── tools/
+│   ├── installer_app.py             # Script de l'installateur 
+│   ├── uninstaller_app.py           # Script du désinstallateur 
+│   └── updater_app.py               # Script de l'utilitaire de mise à jours 
+└── requirements.txt                 # Dépendances Python 
 ```
 
 ## Modification du projet
@@ -52,22 +56,28 @@ pip install -r .\requirements.txt
 
 ### Compilation
 
-Pour recompiler l'application et les installateurs:
+Pour compiler les différents composants, placez-vous dans le dossier src et utilisez les commandes suivantes :
 
 ```bash
-python.exe .\installer.py
-```
+# Compiler l'application principale
+python -m builders.build_app
 
-Pour recompiler le désinstallateur:
+# Compiler l'installateur
+python -m builders.build_installer
 
-```bash
-python.exe .\create_uninstaller.py
+# Compiler le désinstallateur
+python -m builders.build_uninstaller
+
+# Compiler l'updater
+python -m builders.build_updater
 ```
 
 Les fichiers compilés se trouveront dans le dossier dist/.
 
+**Important: Avant toute compilation, pensez à mettre à jour le numéro de version dans le fichier version.py.**
+
 ## Note
 
-Les modifications du code source nécessitent une recompilation complète de l'application et des installateurs.  
+Les modifications du code source nécessitent une recompilation complète de l'application.  
 Lorsque l'app est installée avec l'installateur exécutable, celle-ci se trouve dans *C:\Program Files\NMGFacturation*  
 Le fichier de base de données se trouve à l'emplacement *C:\Users\%USER%\AppData\Local\NMGFacturation\data*
