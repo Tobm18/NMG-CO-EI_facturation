@@ -2,6 +2,7 @@ import os
 import datetime
 import sys
 import requests
+import sqlite3
 from pathlib import Path
 from src.version import APP_VERSION
 import subprocess
@@ -9,7 +10,7 @@ from PyQt5.QtNetwork import QLocalSocket, QLocalServer
 
 # Add project root to Python path
 project_root = str(Path(__file__).parent.parent)
-if project_root not in sys.path:
+if (project_root not in sys.path):
     sys.path.append(project_root)
 
 from PyQt5.QtWidgets import (
@@ -177,6 +178,38 @@ class DatabaseWarningDialog(QDialog):
         layout.addWidget(self.cancel_btn)
         
         self.setLayout(layout)
+
+def verify_database():
+    """Vérifie si la base de données existe et est valide"""
+    try:
+        db_path = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation', 'data', 'facturation.db')
+        
+        # Vérifier si le fichier existe
+        if not os.path.exists(db_path):
+            return False
+            
+        # Tenter d'ouvrir la base de données et de lire une table
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Vérifier si les tables principales existent
+        cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name IN ('dossiers', 'produits', 'options', 'addresses')
+        """)
+        
+        tables = cursor.fetchall()
+        conn.close()
+        
+        # Vérifier que toutes les tables requises sont présentes
+        required_tables = {'dossiers', 'produits', 'options', 'addresses'}
+        existing_tables = {table[0] for table in tables}
+        
+        return required_tables.issubset(existing_tables)
+        
+    except Exception as e:
+        print(f"Erreur lors de la vérification de la base de données : {e}")
+        return False
 
 def initialize_database():
     """Initialise ou vérifie la base de données"""
