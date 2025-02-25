@@ -1,7 +1,11 @@
 import os
 import datetime
 import sys
+import requests
 from pathlib import Path
+from src.version import APP_VERSION
+import subprocess
+from PyQt5.QtNetwork import QLocalSocket, QLocalServer
 
 # Add project root to Python path
 project_root = str(Path(__file__).parent.parent)
@@ -81,6 +85,17 @@ def get_resource_path(relative_path):
     except Exception as e:
         print(f"Erreur lors de la récupération du chemin de la ressource : {e}")
         return None
+
+def is_app_running():
+    """Vérifie si une autre instance de l'application est déjà en cours d'exécution"""
+    socket = QLocalSocket()
+    socket.connectToServer("NMGFacturation")
+    is_running = socket.waitForConnected(500)
+    if is_running:
+        socket.write(b"ACTIVATE")
+        socket.flush()
+        socket.disconnectFromServer()
+    return is_running
 
 class NoScrollComboBox(QComboBox):
     def wheelEvent(self, event):
@@ -301,9 +316,12 @@ class BackupDialog(QDialog):
             QMessageBox.critical(self, "Erreur", f"Erreur lors de la restauration : {str(e)}")
 
 class MainWindow(QWidget):
+    APP_VERSION = APP_VERSION
+    
     def __init__(self):
         super().__init__()
-
+        self.update_url = "https://nmg.skietmontagnepegomas.com/update"
+        
         self.setWindowTitle("NMG&CO EI Facturation")
         self.setGeometry(100, 100, 1280, 720)  # Set window size to 1280x720 for 16:9 aspect ratio
         self.setMinimumSize(1280, 720)  # Set minimum size to ensure usability on smaller screens
@@ -386,10 +404,23 @@ class MainWindow(QWidget):
         self.adresses_button.setStyleSheet(self.get_button_style(False))
         self.adresses_button.clicked.connect(self.show_addresses)
 
+        # Ajouter un label pour la version à droite
+        version_label = QLabel(f"v{self.APP_VERSION}")
+        version_label.setStyleSheet("""
+            QLabel {
+                color: #95a5a6;
+                font-size: 12px;
+                padding-right: 10px;
+            }
+        """)
+        version_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
+        bandeau_layout.addWidget(version_label)  # Ajouter le label de version
         bandeau_layout.addWidget(self.dossiers_button)
         bandeau_layout.addWidget(self.factures_button)
         bandeau_layout.addWidget(self.devis_button)
         bandeau_layout.addWidget(self.adresses_button)
+        
         bandeau_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins
         bandeau_layout.setSpacing(0)  # Remove spacing
 
@@ -760,6 +791,82 @@ class MainWindow(QWidget):
         """
         self.is_editing = False  # Track if the user is in edit mode
         self.quantity_options = ["", "Forfait", "Ensemble"]
+
+        self.check_for_updates()
+        
+        # Initialiser le serveur local
+        self._server = QLocalServer(self)
+        self._server.listen("NMGFacturation")
+        self._server.newConnection.connect(self._activate_window)
+
+    def _activate_window(self):
+        """Active la fenêtre quand une autre instance essaie de démarrer"""
+        self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+        self.activateWindow()
+        self.raise_()
+
+    def check_for_updates(self):
+        """Vérifie si une mise à jour est disponible"""
+        try:
+            response = requests.get(f"{self.update_url}/check", timeout=5)
+            if response.status_code == 200:
+                update_info = response.json()
+                if self._version_is_greater(update_info['version'], self.APP_VERSION):
+                    self._prompt_update(update_info['version'])
+        except Exception as e:
+            print(f"Erreur lors de la vérification des mises à jour: {e}")
+    
+    def _version_is_greater(self, version_a, version_b):
+        """Compare deux numéros de version"""
+        try:
+            a_parts = [int(x) for x in version_a.split('.')]
+            b_parts = [int(x) for x in version_b.split('.')]
+            
+            # Comparer chaque partie de la version
+            for i in range(max(len(a_parts), len(b_parts))):
+                a = a_parts[i] if i < len(a_parts) else 0
+                b = b_parts[i] if i < len(b_parts) else 0
+                if a > b:
+                    return True
+                if b > a:
+                    return False
+            return False  # Versions égales
+        except Exception as e:
+            print(f"Erreur lors de la comparaison des versions: {e}")
+            return False
+        
+    def _prompt_update(self, new_version):
+        """Affiche le dialogue de mise à jour"""
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setWindowTitle("Mise à jour disponible")
+        msg.setText(f"Une nouvelle version ({new_version}) est disponible !")
+        msg.setInformativeText("Voulez-vous l'installer maintenant ?")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.button(QMessageBox.Yes).setText("Mettre à jour")
+        msg.button(QMessageBox.No).setText("Plus tard")
+
+        if msg.exec_() == QMessageBox.Yes:
+            self._launch_updater(new_version)
+            
+    def _launch_updater(self, version):
+        """Lance l'application de mise à jour"""
+        try:
+            updater_path = os.path.join(
+                os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd(),
+                "NMGFacturationUpdater.exe"
+            )
+            if not os.path.exists(updater_path):
+                QMessageBox.critical(self, "Erreur", "Programme de mise à jour non trouvé.")
+                return
+                
+            # Lancer l'updater avant de quitter
+            subprocess.Popen([updater_path, version])
+            # Forcer la fermeture de l'application principale
+            sys.exit(0)  
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors du lancement de la mise à jour: {e}")
 
     def sanitize_input(self, text):
         return text.replace(',', '.')
@@ -1642,6 +1749,10 @@ if __name__ == "__main__":
 
         app = QApplication(sys.argv)
         
+        # Vérifier si une instance est déjà en cours d'exécution
+        if is_app_running():
+            sys.exit(0)
+            
         # Set modern font
         font = QFont("Segoe UI", 12)
         app.setFont(font)
