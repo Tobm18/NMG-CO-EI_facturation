@@ -145,6 +145,11 @@ def install_application():
         paths = get_app_paths()
         os.makedirs(paths['install_dir'], exist_ok=True)
 
+        # Créer le dossier data et initialiser la base de données
+        data_dir = os.path.join(paths['app_data'], 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        create_database(data_dir)
+
         # Dialogue de progression
         progress = QProgressDialog("Téléchargement en cours...", "Annuler", 0, 100)
         progress.setWindowModality(Qt.WindowModal)

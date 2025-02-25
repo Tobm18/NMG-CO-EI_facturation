@@ -1760,7 +1760,13 @@ if __name__ == "__main__":
         # Apply stylesheet
         app.setStyleSheet(load_stylesheet())
 
+        # Vérifier/initialiser la base de données avant de lancer l'application
+        if not initialize_database():
+            sys.exit(1)
+
+        # Créer les tables si la base de données existe
         create_tables()
+        
         window = MainWindow()
         window.show()
 
