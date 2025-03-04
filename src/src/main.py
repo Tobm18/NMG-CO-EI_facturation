@@ -1118,7 +1118,7 @@ class MainWindow(QWidget):
                 # Configuration de l'unité
                 unite = produit[6] if produit[6] is not None else "aucune"
                 unite_combo = NoScrollComboBox()
-                unite_combo.addItems(["aucune", "m", "m²", "m³"])
+                unite_combo.addItems(["aucune", "ml", "m²", "m³"])
                 unite_combo.setCurrentText(unite)
                 unite_combo.setFocusPolicy(Qt.NoFocus)
                 unite_combo.setStyleSheet(self.table_combo_style)
@@ -1175,7 +1175,7 @@ class MainWindow(QWidget):
                     
                     unite = option[6] if option[6] is not None else "aucune"
                     unite_combo = NoScrollComboBox()
-                    unite_combo.addItems(["aucune", "m", "m²", "m³"])
+                    unite_combo.addItems(["aucune", "ml", "m²", "m³"])
                     unite_combo.setCurrentText(unite)
                     unite_combo.setFocusPolicy(Qt.NoFocus)
                     unite_combo.setStyleSheet(self.table_combo_style)
@@ -1267,7 +1267,7 @@ class MainWindow(QWidget):
             self.produits_table.setCellWidget(row_position, 2, quantity_combo)
             
             unite_combo = NoScrollComboBox()
-            unite_combo.addItems(["aucune", "m", "m²", "m³"])
+            unite_combo.addItems(["aucune", "ml", "m²", "m³"])
             unite_combo.setFocusPolicy(Qt.NoFocus)
             unite_combo.setStyleSheet(self.table_combo_style)
             self.produits_table.setCellWidget(row_position, 3, unite_combo)
@@ -1309,7 +1309,7 @@ class MainWindow(QWidget):
         self.produits_table.setCellWidget(row_position, 2, quantity_combo)
         
         unite_combo = NoScrollComboBox()
-        unite_combo.addItems(["aucune", "m", "m²", "m³"])
+        unite_combo.addItems(["aucune", "ml", "m²", "m³"])
         unite_combo.setFocusPolicy(Qt.NoFocus)
         unite_combo.setStyleSheet(self.table_combo_style)
         self.produits_table.setCellWidget(row_position, 3, unite_combo)
@@ -1349,7 +1349,7 @@ class MainWindow(QWidget):
         self.options_table.setCellWidget(row_position, 2, quantity_combo)
         
         unite_combo = NoScrollComboBox()
-        unite_combo.addItems(["aucune", "m", "m²", "m³"])
+        unite_combo.addItems(["aucune", "ml", "m²", "m³"])
         unite_combo.setFocusPolicy(Qt.NoFocus)
         unite_combo.setStyleSheet(self.table_combo_style)
         self.options_table.setCellWidget(row_position, 3, unite_combo)
