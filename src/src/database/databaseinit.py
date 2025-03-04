@@ -76,7 +76,9 @@ def init_database():
             garantie_decennale INTEGER,  
             description TEXT,
             devis_signe INTEGER DEFAULT 0,
-            facture_payee INTEGER DEFAULT 0
+            facture_payee INTEGER DEFAULT 0,
+            devis_generated INTEGER DEFAULT 0,  
+            facture_generated INTEGER DEFAULT 0
         )''')
         
         cursor.execute('''

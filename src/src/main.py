@@ -35,7 +35,8 @@ from src.database.database import (
     delete_produits as delete_produits,
     delete_options as delete_options,
     create_tables,
-    get_addresses
+    get_addresses,
+    update_document_generated
 )
 from src.database.databaseinit import init_database
 from src.views.liste_facture import ListeFacture
@@ -188,24 +189,54 @@ def verify_database():
         if not os.path.exists(db_path):
             return False
             
-        # Tenter d'ouvrir la base de données et de lire une table
+        # Tenter d'ouvrir la base de données
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Vérifier si les tables principales existent
-        cursor.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name IN ('dossiers', 'produits', 'options', 'addresses')
-        """)
+        # Définir le schéma attendu pour chaque table
+        expected_schema = {
+            'dossiers': [
+                'id', 'numero_dossier', 'adresse_chantier', 'libelle_travaux',
+                'adresse_facturation', 'moyen_paiement', 'garantie_decennale',
+                'description', 'devis_signe', 'facture_payee',
+                'devis_generated', 'facture_generated'
+            ],
+            'produits': [
+                'id', 'dossier_id', 'designation', 'quantite',
+                'prix', 'remise', 'unite'
+            ],
+            'options': [
+                'id', 'dossier_id', 'designation', 'quantite',
+                'prix', 'remise', 'unite'
+            ],
+            'addresses': [
+                'id', 'address'
+            ]
+        }
         
-        tables = cursor.fetchall()
+        # Vérifier chaque table
+        for table_name, expected_columns in expected_schema.items():
+            # Vérifier si la table existe
+            cursor.execute(f"""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='{table_name}'
+            """)
+            if not cursor.fetchone():
+                print(f"Table manquante: {table_name}")
+                return False
+                
+            # Vérifier les colonnes
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            existing_columns = [col[1] for col in cursor.fetchall()]
+            
+            # Vérifier si toutes les colonnes attendues sont présentes
+            missing_columns = set(expected_columns) - set(existing_columns)
+            if missing_columns:
+                print(f"Colonnes manquantes dans {table_name}: {missing_columns}")
+                return False
+        
         conn.close()
-        
-        # Vérifier que toutes les tables requises sont présentes
-        required_tables = {'dossiers', 'produits', 'options', 'addresses'}
-        existing_tables = {table[0] for table in tables}
-        
-        return required_tables.issubset(existing_tables)
+        return True
         
     except Exception as e:
         print(f"Erreur lors de la vérification de la base de données : {e}")
@@ -220,7 +251,42 @@ def initialize_database():
         dialog = DatabaseWarningDialog()
         if dialog.exec_() == QDialog.Accepted:
             try:
+                # Si le dossier data existe, supprimer son contenu
+                if os.path.exists(db_dir):
+                    try:
+                        # On force la fermeture de toutes les connexions existantes
+                        import gc
+                        gc.collect()  # Force garbage collection
+                        
+                        # Si une connexion existe, on la ferme
+                        try:
+                            conn = sqlite3.connect(db_path)
+                            conn.close()
+                        except:
+                            pass
+                        
+                        # Petite pause pour s'assurer que les connexions sont bien fermées
+                        import time
+                        time.sleep(0.5)
+                        
+                        # Supprimer tous les fichiers dans le dossier data
+                        for filename in os.listdir(db_dir):
+                            file_path = os.path.join(db_dir, filename)
+                            if os.path.isfile(file_path):
+                                try:
+                                    os.remove(file_path)
+                                except PermissionError:
+                                    # Si on ne peut toujours pas supprimer, on attend encore
+                                    time.sleep(0.5)
+                                    os.remove(file_path)
+                    except Exception as e:
+                        QMessageBox.critical(None, "Erreur", f"Erreur lors de la suppression des anciens fichiers : {str(e)}")
+                        return False
+
+                # Créer le dossier data s'il n'existe pas
                 os.makedirs(db_dir, exist_ok=True)
+                
+                # Initialiser la nouvelle base de données
                 from src.database.databaseinit import init_database
                 init_database()
                 QMessageBox.information(None, "Succès", "Base de données créée avec succès.")
@@ -313,7 +379,7 @@ class BackupDialog(QDialog):
 
     def restore(self):
         try:
-            # Demander à l'utilisateur de sélectionner le fichier de sauvegarde
+            # Select backup file
             file_path, _ = QFileDialog.getOpenFileName(
                 self,
                 "Sélectionner une sauvegarde",
@@ -322,7 +388,6 @@ class BackupDialog(QDialog):
             )
             
             if file_path:
-                # Confirmer la restauration
                 reply = QMessageBox.question(
                     self,
                     'Confirmation',
@@ -332,19 +397,87 @@ class BackupDialog(QDialog):
                 )
                 
                 if reply == QMessageBox.Yes:
-                    # Chemin de la base de données de l'application
+                    # Get paths
                     db_path = os.path.join(os.environ['LOCALAPPDATA'], 'NMGFacturation', 'data', 'facturation.db')
                     db_dir = os.path.dirname(db_path)
                     os.makedirs(db_dir, exist_ok=True)
                     
-                    # Copier le fichier
-                    import shutil
-                    shutil.copy2(file_path, db_path)
+                    # Create new database with current schema
+                    from src.database.databaseinit import init_database
+                    init_database()
+    
+                    # Connect to both databases
+                    old_conn = sqlite3.connect(file_path)
+                    new_conn = sqlite3.connect(db_path)
                     
-                    QMessageBox.information(self, "Succès", "Restauration effectuée avec succès.\nVeuillez redémarrer l'application.")
-                    self.accept()
-                    # Fermer l'application
-                    QApplication.quit()
+                    try:
+                        old_cursor = old_conn.cursor()
+                        new_cursor = new_conn.cursor()
+    
+                        # Transfer dossiers data
+                        old_cursor.execute("SELECT * FROM dossiers")
+                        dossiers = old_cursor.fetchall()
+                        
+                        for dossier in dossiers:
+                            # Add missing columns with default values
+                            dossier_data = list(dossier)
+                            if len(dossier_data) < 12:  # If old schema
+                                dossier_data.extend([0, 0])  # Add devis_generated and facture_generated
+                            
+                            new_cursor.execute('''
+                                INSERT INTO dossiers (
+                                    id, numero_dossier, adresse_chantier, libelle_travaux,
+                                    adresse_facturation, moyen_paiement, garantie_decennale,
+                                    description, devis_signe, facture_payee,
+                                    devis_generated, facture_generated
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', dossier_data)
+    
+                        # Transfer produits data
+                        old_cursor.execute("SELECT * FROM produits")
+                        produits = old_cursor.fetchall()
+                        for produit in produits:
+                            new_cursor.execute('''
+                                INSERT INTO produits (
+                                    id, dossier_id, designation, quantite,
+                                    prix, remise, unite
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ''', produit)
+    
+                        # Transfer options data
+                        old_cursor.execute("SELECT * FROM options")
+                        options = old_cursor.fetchall()
+                        for option in options:
+                            new_cursor.execute('''
+                                INSERT INTO options (
+                                    id, dossier_id, designation, quantite,
+                                    prix, remise, unite
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ''', option)
+    
+                        # Transfer addresses data
+                        old_cursor.execute("SELECT * FROM addresses")
+                        addresses = old_cursor.fetchall()
+                        for address in addresses:
+                            new_cursor.execute('INSERT INTO addresses (id, address) VALUES (?, ?)', address)
+    
+                        new_conn.commit()
+                        msg = QMessageBox.information(
+                            self, 
+                            "Succès", 
+                            "Base de données restaurée avec succès, veuillez redémarrer l'application",
+                            QMessageBox.Ok
+                        )
+                        if msg == QMessageBox.Ok:
+                            sys.exit(0)  # Exit application
+                        
+                    except Exception as e:
+                        QMessageBox.critical(self, "Erreur", f"Erreur lors de la restauration : {str(e)}")
+                        
+                    finally:
+                        old_conn.close()
+                        new_conn.close()
+    
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de la restauration : {str(e)}")
 
@@ -942,6 +1075,8 @@ class MainWindow(QWidget):
             description = self.description_input.toPlainText()
             devis_signe = 1 if self.devis_signe_check.isChecked() else 0
             facture_payee = 1 if self.facture_payee_check.isChecked() else 0
+            devis_generated = getattr(self, 'devis_generated', 0) # Récupère la valeur si existe
+            facture_generated = getattr(self, 'facture_generated', 0)
 
             if not (numero_dossier and adresse_chantier):
                 self.show_error_message("Erreur", "Veuillez remplir tous les champs obligatoires")
@@ -958,7 +1093,9 @@ class MainWindow(QWidget):
                     garantie_decennale,
                     description,
                     devis_signe,
-                    facture_payee  
+                    facture_payee,
+                    devis_generated,
+                    facture_generated
                 )
                 dossier_id = self.current_dossier_id
             else:
@@ -974,6 +1111,8 @@ class MainWindow(QWidget):
                     facture_payee
                 )
                 self.current_dossier_id = dossier_id
+                self.devis_generated = 0 
+                self.facture_generated = 0
 
             if not self.save_produits(dossier_id):
                 return False
@@ -1387,6 +1526,8 @@ class MainWindow(QWidget):
                 from src.utils.generate_devis import generate_devis
                 if generate_devis(self.current_dossier_id):
                     QMessageBox.information(self, "Devis", "Devis généré avec succès")
+                    update_document_generated(self.current_dossier_id, 'devis', True)
+                    self.devis_generated = 1
                 else:
                     # Ne rien faire si l'utilisateur a annulé
                     pass
@@ -1426,6 +1567,8 @@ class MainWindow(QWidget):
                 from src.utils.generate_facture import generate_facture
                 if generate_facture(self.current_dossier_id, invoice_type):
                     QMessageBox.information(self, "Facture", f"{invoice_type} générée avec succès")
+                    update_document_generated(self.current_dossier_id, 'facture', True)
+                    self.facture_generated = 1
             else:
                 # Ne rien faire si l'utilisateur a annulé
                 pass

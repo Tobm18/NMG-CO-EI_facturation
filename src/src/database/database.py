@@ -33,16 +33,18 @@ def add_dossier(numero_dossier, adresse_chantier, libelle_travaux, adresse_factu
         garantie_decennale, 
         description, 
         devis_signe, 
-        facture_payee
+        facture_payee,
+        devis_generated, 
+        facture_generated
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
     ''', (numero_dossier, adresse_chantier, libelle_travaux, adresse_facturation, moyen_paiement, garantie_decennale, description, devis_signe, facture_payee))
     dossier_id = cursor.lastrowid
     conn.commit()
     conn.close()
     return dossier_id
 
-def update_dossier(dossier_id, numero_dossier, adresse_chantier, libelle_travaux, adresse_facturation, moyen_paiement, garantie_decennale, description, devis_signe, facture_payee):
+def update_dossier(dossier_id, numero_dossier, adresse_chantier, libelle_travaux, adresse_facturation, moyen_paiement, garantie_decennale, description, devis_signe, facture_payee, devis_generated, facture_generated):
     """Met à jour un dossier existant dans la base de données."""
     try:
         conn = get_connection()
@@ -58,9 +60,11 @@ def update_dossier(dossier_id, numero_dossier, adresse_chantier, libelle_travaux
                 garantie_decennale = ?, 
                 description = ?, 
                 devis_signe = ?,  
-                facture_payee = ?  
+                facture_payee = ?,
+                devis_generated = ?, 
+                facture_generated = ?
             WHERE id = ?
-        ''', (numero_dossier, adresse_chantier, libelle_travaux, adresse_facturation, moyen_paiement, garantie_decennale, description, devis_signe, facture_payee, dossier_id))
+        ''', (numero_dossier, adresse_chantier, libelle_travaux, adresse_facturation, moyen_paiement, garantie_decennale, description, devis_signe, facture_payee, devis_generated, facture_generated, dossier_id))
 
         conn.commit()
         conn.close()
@@ -68,6 +72,25 @@ def update_dossier(dossier_id, numero_dossier, adresse_chantier, libelle_travaux
     except Exception as e:
         print(f"Erreur lors de la mise à jour du dossier : {e}")
         return False
+
+def update_document_generated(dossier_id, doc_type, status):
+    """Met à jour le statut de génération d'un document (devis ou facture)"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    field = 'devis_generated' if doc_type == 'devis' else 'facture_generated'
+    try:
+        cursor.execute(f'''
+            UPDATE dossiers 
+            SET {field} = ?
+            WHERE id = ?
+        ''', (1 if status else 0, dossier_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erreur lors de la mise à jour du statut de génération : {e}")
+        return False
+    finally:
+        conn.close()
 
 def delete_produits(dossier_id):
     conn = get_connection()

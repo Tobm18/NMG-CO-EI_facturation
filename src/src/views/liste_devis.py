@@ -95,8 +95,11 @@ class ListeDevis(QWidget):
 
     def load_devis(self):
         dossiers = get_dossiers()
-        self.table.setRowCount(len(dossiers))
-        for row, dossier in enumerate(dossiers):
+        # Filtrer les dossiers où devis_generated == 1
+        dossiers_avec_devis = [d for d in dossiers if d[10] == 1] 
+
+        self.table.setRowCount(len(dossiers_avec_devis))
+        for row, dossier in enumerate(dossiers_avec_devis):
             columns = [
                 (1, "numero_dossier"),
                 (2, "adresse_chantier"),

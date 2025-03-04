@@ -96,8 +96,11 @@ class ListeFacture(QWidget):
 
     def load_factures(self):
         dossiers = get_dossiers()
-        self.table.setRowCount(len(dossiers))
-        for row, dossier in enumerate(dossiers):
+        # Filtrer les dossiers où facture_generated == 1
+        dossiers_avec_facture = [d for d in dossiers if d[11] == 1]  # index 11 pour facture_generated
+    
+        self.table.setRowCount(len(dossiers_avec_facture))
+        for row, dossier in enumerate(dossiers_avec_facture):
             columns = [
                 (1, "numero_dossier"),
                 (2, "adresse_chantier"),
